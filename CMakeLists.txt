@@ -51,3 +51,39 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${EGL_LIBRARIES}
     ${EPOXY_LIBRARIES}   
 )
+
+# flags for build
+target_compile_options(${PROJECT_NAME} PRIVATE
+    -fno-exceptions
+    -fno-rtti
+)
+
+target_compile_options(${PROJECT_NAME} PRIVATE
+    $<$<CONFIG:Debug>:
+        -g3
+        -O0
+        -Wall
+        -Wextra
+        -Wpedantic
+        -fsanitize=address
+        -fsanitize=undefined
+    >
+
+    $<$<CONFIG:Release>:
+        -O3
+        -DNDEBUG
+        -march=native
+    >
+)
+
+target_link_options(${PROJECT_NAME} PRIVATE
+    $<$<CONFIG:Debug>:
+        -fsanitize=address
+        -fsanitize=undefined
+    >
+)
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    $<$<CONFIG:Debug>:LUMI_DEBUG>
+    $<$<CONFIG:Release>:LUMI_RELEASE>
+)
