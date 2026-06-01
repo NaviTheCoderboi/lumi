@@ -21,3 +21,5 @@ build.ninja
 
 # OS
 .DS_Store
+
+AGENTS.md
