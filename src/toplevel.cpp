@@ -9,6 +9,14 @@ void ToplevelContext::init(ext_foreign_toplevel_list_v1* manager) {
     ext_foreign_toplevel_list_v1_add_listener(manager, &managerListener, this);
 }
 
+void ToplevelContext::replayOpenApps() const {
+    if (!onAppOpen) return;
+
+    for (const auto& [appId, count] : appIdCount) {
+        if (count > 0) onAppOpen(appId);
+    }
+}
+
 void ToplevelContext::onManagerToplevel(
     void* data, ext_foreign_toplevel_list_v1*,
     ext_foreign_toplevel_handle_v1* handle) {
