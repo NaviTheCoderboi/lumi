@@ -1,6 +1,7 @@
 #include "dock.hpp"
 
 #include <cmath>
+#include <cstddef>
 
 #include "app.hpp"
 #include "config.hpp"
@@ -72,7 +73,7 @@ static void updateDockAnimations(std::vector<DockItem>& items, float mouseX,
 
     float influenceRadius{itemSize * 2.3f};
 
-    for (int i{0}; i < items.size(); i++) {
+    for (std::size_t i{0}; i < items.size(); i++) {
         float iconSize{itemSize * items[i].scale()};
         float iconCenter{dockStartX + i * itemSpacing + itemSize * 0.5f};
 

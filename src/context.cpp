@@ -4,9 +4,16 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 
 #include "logger.hpp"
 #include "toplevel.hpp"
+
+constexpr std::uint32_t COMPOSITOR_VERSION{4};
+constexpr std::uint32_t SEAT_VERSION{7};
+constexpr std::uint32_t LAYER_SHELL_VERSION{1};
+constexpr std::uint32_t EXT_FOREIGN_VERSION{1};
+constexpr std::uint32_t WLR_FOREIGN_VERSION{3};
 
 WaylandContext& WaylandContext::get() {
     static WaylandContext instance;
@@ -42,7 +49,10 @@ WaylandContext::~WaylandContext() {
     if (compositor) wl_compositor_destroy(compositor);
     if (registry) wl_registry_destroy(registry);
     if (display) wl_display_disconnect(display);
-    if (toplevelManager) ext_foreign_toplevel_list_v1_destroy(toplevelManager);
+    if (extToplevelManager)
+        ext_foreign_toplevel_list_v1_destroy(extToplevelManager);
+    if (wlrToplevelManager)
+        zwlr_foreign_toplevel_manager_v1_destroy(wlrToplevelManager);
 }
 
 void WaylandContext::roundtrip() const { wl_display_roundtrip(display); }
@@ -53,29 +63,54 @@ void WaylandContext::onGlobal(void* data, wl_registry* registry,
                               std::uint32_t name, const char* interface,
                               std::uint32_t version) {
     auto& self{*static_cast<WaylandContext*>(data)};
+    auto& toplevelCtx{ToplevelContext::get()};
 
     if (std::strcmp(interface, wl_compositor_interface.name) == 0) {
         self.compositor = static_cast<wl_compositor*>(
-            wl_registry_bind(registry, name, &wl_compositor_interface, 4));
+            wl_registry_bind(registry, name, &wl_compositor_interface,
+                             std::min(version, COMPOSITOR_VERSION)));
     } else if (std::strcmp(interface, zwlr_layer_shell_v1_interface.name) ==
                0) {
-        self.layerShell = static_cast<zwlr_layer_shell_v1*>(wl_registry_bind(
-            registry, name, &zwlr_layer_shell_v1_interface, 1));
+        self.layerShell = static_cast<zwlr_layer_shell_v1*>(
+            wl_registry_bind(registry, name, &zwlr_layer_shell_v1_interface,
+                             std::min(version, LAYER_SHELL_VERSION)));
     } else if (std::strcmp(interface, wl_seat_interface.name) == 0) {
         self.seat = static_cast<wl_seat*>(
-            wl_registry_bind(registry, name, &wl_seat_interface, 7));
+            wl_registry_bind(registry, name, &wl_seat_interface,
+                             std::min(version, SEAT_VERSION)));
         wl_seat_add_listener(self.seat, &seatListener, &self);
     } else if (std::strcmp(interface,
-                           ext_foreign_toplevel_list_v1_interface.name) == 0) {
-        self.toplevelManager =
+                           ext_foreign_toplevel_list_v1_interface.name) == 0 &&
+               self.backend == BackendType::None) {
+        self.extToplevelManager =
             static_cast<ext_foreign_toplevel_list_v1*>(wl_registry_bind(
-                registry, name, &ext_foreign_toplevel_list_v1_interface, 1));
+                registry, name, &ext_foreign_toplevel_list_v1_interface,
+                std::min(version, EXT_FOREIGN_VERSION)));
 
-        ToplevelContext::get().init(self.toplevelManager);
+        logger::info("Found ext-foreign-toplevel-list-v1");
+
+        self.backend = BackendType::ExtForeign;
+        toplevelCtx.setBackend(
+            std::make_unique<ExtForeignBackend>(self.extToplevelManager));
+    } else if (std::strcmp(interface,
+                           zwlr_foreign_toplevel_manager_v1_interface.name) ==
+                   0 &&
+               self.backend == BackendType::None) {
+        self.wlrToplevelManager =
+            static_cast<zwlr_foreign_toplevel_manager_v1*>(wl_registry_bind(
+                registry, name, &zwlr_foreign_toplevel_manager_v1_interface,
+                std::min(version, WLR_FOREIGN_VERSION)));
+
+        logger::info("Found wlr-foreign-toplevel-management");
+
+        self.backend = BackendType::WlrForeign;
+        toplevelCtx.setBackend(
+            std::make_unique<WlrForeignBackend>(self.wlrToplevelManager));
     }
 }
 
-void WaylandContext::onGlobalRemove(void* data, wl_registry* registry,
+void WaylandContext::onGlobalRemove(void* data,
+                                    [[maybe_unused]] wl_registry* registry,
                                     std::uint32_t name) {
     auto& self{*static_cast<WaylandContext*>(data)};
 
@@ -106,10 +141,9 @@ void WaylandContext::onSeatCapabilities(void* data, wl_seat* seat,
     }
 }
 
-void WaylandContext::onPointerEnter(void* data, wl_pointer*, uint32_t,
-                                    wl_surface*, wl_fixed_t sx, wl_fixed_t sy) {
-    auto& self{*static_cast<WaylandContext*>(data)};
-
+void WaylandContext::onPointerEnter([[maybe_unused]] void* data, wl_pointer*,
+                                    uint32_t, wl_surface*, wl_fixed_t sx,
+                                    wl_fixed_t sy) {
     auto& mouseContext{MouseContext::get()};
 
     mouseContext.x = wl_fixed_to_double(sx);
@@ -117,30 +151,25 @@ void WaylandContext::onPointerEnter(void* data, wl_pointer*, uint32_t,
     mouseContext.inside = true;
 }
 
-void WaylandContext::onPointerLeave(void* data, wl_pointer*, uint32_t,
-                                    wl_surface*) {
-    auto& self{*static_cast<WaylandContext*>(data)};
-
+void WaylandContext::onPointerLeave([[maybe_unused]] void* data, wl_pointer*,
+                                    uint32_t, wl_surface*) {
     auto& mouseContext{MouseContext::get()};
     mouseContext.inside = false;
     mouseContext.x = -9999.f;
     mouseContext.y = -9999.f;
 }
 
-void WaylandContext::onPointerMotion(void* data, wl_pointer*, uint32_t,
-                                     wl_fixed_t sx, wl_fixed_t sy) {
-    auto& self{*static_cast<WaylandContext*>(data)};
-
+void WaylandContext::onPointerMotion([[maybe_unused]] void* data, wl_pointer*,
+                                     uint32_t, wl_fixed_t sx, wl_fixed_t sy) {
     auto& mouseContext{MouseContext::get()};
     mouseContext.x = wl_fixed_to_double(sx);
     mouseContext.y = wl_fixed_to_double(sy);
 }
 
-void WaylandContext::onPointerButton(void* data, wl_pointer*, uint32_t serial,
+void WaylandContext::onPointerButton([[maybe_unused]] void* data, wl_pointer*,
+                                     [[maybe_unused]] uint32_t serial,
                                      uint32_t /*time*/, uint32_t button,
                                      uint32_t state) {
-    auto& self{*static_cast<WaylandContext*>(data)};
-
     if (button != 0x110) return;
 
     auto& mouseContext{MouseContext::get()};

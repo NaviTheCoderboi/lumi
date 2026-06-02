@@ -5,12 +5,19 @@
 
 #include <cstdint>
 
-#include "ext-foreign-toplevel-list-v1.h"
+#include "ext-foreign-toplevel-list-v1-client-protocol.h"
+#include "toplevel.hpp"
+#include "wlr-foreign-toplevel-management-unstable-v1-client-protocol.h"
 
 extern "C" {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wkeyword-macro"
+
 #define namespace ns
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #undef namespace
+
+#pragma clang diagnostic pop
 }
 
 class MouseContext {
@@ -42,7 +49,10 @@ class WaylandContext {
     wl_display* display{nullptr};
     wl_compositor* compositor{nullptr};
     zwlr_layer_shell_v1* layerShell{nullptr};
-    ext_foreign_toplevel_list_v1* toplevelManager{nullptr};
+    ext_foreign_toplevel_list_v1* extToplevelManager{nullptr};
+    zwlr_foreign_toplevel_manager_v1* wlrToplevelManager{nullptr};
+
+    BackendType backend{BackendType::None};
 
     wl_seat* seat{nullptr};
     wl_pointer* pointer{nullptr};

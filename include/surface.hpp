@@ -7,9 +7,14 @@
 #include <cstdint>
 
 extern "C" {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wkeyword-macro"
+
 #define namespace ns
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #undef namespace
+
+#pragma clang diagnostic pop
 }
 
 class LayerSurface {
