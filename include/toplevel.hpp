@@ -104,12 +104,14 @@ enum BackendType { ExtForeign, WlrForeign, None };
 
 class ToplevelContext {
    public:
-    Callback onAppOpen;
-    Callback onAppClose;
+    Callback onAppOpen{nullptr};
+    Callback onAppClose{nullptr};
 
     static ToplevelContext& get();
 
     void setBackend(std::unique_ptr<ToplevelBackend> backend);
+
+    void replayOpenApps() const;
 
    private:
     AppIds appIdCount;

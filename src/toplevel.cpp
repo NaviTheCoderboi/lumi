@@ -18,6 +18,14 @@ void ToplevelContext::setBackend(std::unique_ptr<ToplevelBackend> backend) {
     this->backend->init(&appIdCount);
 }
 
+void ToplevelContext::replayOpenApps() const {
+    if (!onAppOpen) return;
+
+    for (const auto& [appId, count] : appIdCount) {
+        if (count > 0) onAppOpen(appId);
+    }
+}
+
 ExtForeignBackend::ExtForeignBackend(ext_foreign_toplevel_list_v1* manager)
     : manager{manager} {}
 

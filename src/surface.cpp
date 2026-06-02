@@ -1,5 +1,8 @@
 #include "surface.hpp"
 
+#include <algorithm>
+#include <cstdio>
+
 #include "config.hpp"
 #include "context.hpp"
 #include "logger.hpp"
@@ -71,25 +74,26 @@ void LayerSurface::onConfigure(void* data, zwlr_layer_surface_v1* layerSurface,
 
     zwlr_layer_surface_v1_ack_configure(layerSurface, serial);
 
-    if (width) self.width = width;
+    int requestedWidth{
+        width ? static_cast<int>(width)
+              : static_cast<int>(config.dockWidth(
+                    static_cast<int>(config.items.size())))};
+    int requestedHeight{
+        height ? static_cast<int>(height)
+               : static_cast<int>(config.surfaceHeight() +
+                                  config.extraAnimationSpace())};
 
-    if (height) self.height = height;
+    requestedWidth = std::max(requestedWidth, 1);
+    requestedHeight = std::max(requestedHeight, 1);
 
-    int targetHeight{static_cast<int>(config.surfaceHeight())};
-    if (!height && self.height != targetHeight) {
-        self.height = targetHeight;
+    self.width = requestedWidth;
+    self.height = requestedHeight;
 
-        zwlr_layer_surface_v1_set_size(
-            self.layerSurface, 0,
-            self.height + static_cast<int>(config.extraAnimationSpace()));
-        zwlr_layer_surface_v1_set_exclusive_zone(self.layerSurface,
-                                                 self.height);
-        zwlr_layer_surface_v1_set_margin(self.layerSurface,
-                                         static_cast<int>(config.margin.top),
-                                         static_cast<int>(config.margin.right),
-                                         static_cast<int>(config.margin.bottom),
-                                         static_cast<int>(config.margin.left));
-    }
+    char logBuffer[192];
+    std::snprintf(logBuffer, sizeof(logBuffer),
+                  "layer configure serial=%u width=%u height=%u final=%dx%d",
+                  serial, width, height, self.width, self.height);
+    logger::info(logBuffer);
 
     if (!self.eglWindow) {
         self.eglWindow =

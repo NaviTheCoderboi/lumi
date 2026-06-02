@@ -6,6 +6,8 @@
 
 <p align="center">A lightweight Wayland dock written in C++.</p>
 
+<video src="assets/demo.mp4" width="100%" controls></video>
+
 ## Highlights
 
 - Wayland layer-shell based dock
