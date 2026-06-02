@@ -66,11 +66,12 @@ int main() {
             }
         }
     };
+    toplevelCtx.replayOpenApps();
 
     auto lastFrame{std::chrono::steady_clock::now()};
     float smoothedDt{1.f / 60.f};
 
-    while (!ls.closed && wl.dispatch() != -1) {
+    auto renderFrame = [&] {
         auto now{std::chrono::steady_clock::now()};
         float dt{std::chrono::duration<float>(now - lastFrame).count()};
         lastFrame = now;
@@ -101,6 +102,13 @@ int main() {
 
         gfx.swapBuffers();
         wl_surface_commit(ls.surface);
+        wl_display_flush(wl.display);
+    };
+
+    renderFrame();
+
+    while (!ls.closed && wl.dispatch() != -1) {
+        renderFrame();
     }
 
     return 0;

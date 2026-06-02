@@ -11,12 +11,13 @@ using Callback = void (*)(std::string_view);
 
 class ToplevelContext {
    public:
-    Callback onAppOpen;
-    Callback onAppClose;
+    Callback onAppOpen{nullptr};
+    Callback onAppClose{nullptr};
 
     static ToplevelContext& get();
 
     void init(ext_foreign_toplevel_list_v1* manager);
+    void replayOpenApps() const;
 
    private:
     std::unordered_map<ext_foreign_toplevel_handle_v1*, std::string>
