@@ -97,6 +97,10 @@ struct DockConfig {
         return maxLiftAmount + ((itemSize * maxScale) - itemSize);
     }
 
+    inline float height() const {
+        return surfaceHeight() + extraAnimationSpace();
+    }
+
     static DockConfig& get() {
         static DockConfig instance;
         return instance;

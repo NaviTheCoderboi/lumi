@@ -15,12 +15,12 @@ void Spring::update(float dt) {
         return;
     }
 
-    float displacement = current - target;
+    float displacement{current - target};
 
-    float springForce = -config.stiffness * displacement;
-    float dampingForce = -config.damping * velocityValue;
+    float springForce{-config.stiffness * displacement};
+    float dampingForce{-config.damping * velocityValue};
 
-    float acceleration = (springForce + dampingForce) / config.mass;
+    float acceleration{(springForce + dampingForce) / config.mass};
 
     velocityValue += acceleration * dt;
     current += velocityValue * dt;

@@ -9,10 +9,10 @@
 #include "dock.hpp"
 #include "gfx.hpp"
 #include "icon.hpp"
+#include "logger.hpp"
 #include "renderer.hpp"
 #include "surface.hpp"
 #include "toplevel.hpp"
-#include "logger.hpp"
 
 int main() {
     auto& wl{WaylandContext::get()};
@@ -71,7 +71,7 @@ int main() {
     auto lastFrame{std::chrono::steady_clock::now()};
     float smoothedDt{1.f / 60.f};
 
-    auto renderFrame = [&] {
+    while (!ls.closed && wl.dispatch() != -1) {
         auto now{std::chrono::steady_clock::now()};
         float dt{std::chrono::duration<float>(now - lastFrame).count()};
         lastFrame = now;
@@ -103,12 +103,6 @@ int main() {
         gfx.swapBuffers();
         wl_surface_commit(ls.surface);
         wl_display_flush(wl.display);
-    };
-
-    renderFrame();
-
-    while (!ls.closed && wl.dispatch() != -1) {
-        renderFrame();
     }
 
     return 0;

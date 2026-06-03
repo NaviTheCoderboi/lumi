@@ -4,8 +4,14 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace fs = std::filesystem;
+
+struct Action {
+    std::string name;
+    std::string exec;
+};
 
 class App {
    public:
@@ -19,6 +25,7 @@ class App {
     std::optional<std::string> Icon;
     std::optional<std::string> Exec;
     std::optional<std::string> StartupWMClass;
+    std::vector<Action> actions;
 
    private:
     std::optional<fs::path> desktopFile;

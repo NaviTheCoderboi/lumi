@@ -6,6 +6,7 @@
 
 #include <cstdlib>
 #include <fstream>
+#include <optional>
 #include <vector>
 
 #include "logger.hpp"
@@ -144,6 +145,10 @@ void App::launch() const {
     if (pid == 0) {
         setsid();
 
+        if (const auto home{getEnv("HOME")}) {
+            chdir(home->data());
+        }
+
         int nullFd{open("/dev/null", O_RDWR)};
 
         if (nullFd >= 0) {
@@ -204,7 +209,8 @@ void App::parseDesktopFile(const fs::path& path) {
         return;
     }
 
-    auto _foundAll = [&]() { return Icon && Exec && StartupWMClass; };
+    bool insideActionDecl{false};
+    std::optional<Action> currentAction;
 
     std::string line;
     while (std::getline(file, line)) {
@@ -214,8 +220,25 @@ void App::parseDesktopFile(const fs::path& path) {
             Exec = line.substr(5);
         } else if (line.starts_with("StartupWMClass=")) {
             StartupWMClass = line.substr(16);
-        }
+        } else if (line.starts_with("[Desktop Action ")) {
+            if (insideActionDecl) {
+                if (currentAction) actions.push_back(std::move(*currentAction));
+                currentAction.reset();
+            }
 
-        if (_foundAll()) break;
+            insideActionDecl = true;
+            currentAction.emplace();
+            currentAction->name = line.substr(16, line.size() - 17);
+        } else if (insideActionDecl && line.starts_with("Exec=")) {
+            if (currentAction) currentAction->exec = line.substr(5);
+        } else if (line.starts_with('[')) {
+            insideActionDecl = false;
+            if (currentAction) {
+                actions.push_back(std::move(*currentAction));
+                currentAction.reset();
+            }
+        }
     }
+
+    if (currentAction) actions.push_back(std::move(*currentAction));
 };

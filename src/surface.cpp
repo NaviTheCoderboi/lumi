@@ -28,12 +28,11 @@ LayerSurface::LayerSurface() {
                                        this);
 
     DockConfig& config{DockConfig::get()};
-    height = static_cast<int>(config.surfaceHeight());
+    height = static_cast<int>(config.height());
 
-    zwlr_layer_surface_v1_set_size(
-        layerSurface, 0,
-        height + static_cast<int>(config.extraAnimationSpace()));
-    zwlr_layer_surface_v1_set_exclusive_zone(layerSurface, height);
+    zwlr_layer_surface_v1_set_size(layerSurface, 0, height);
+    zwlr_layer_surface_v1_set_exclusive_zone(layerSurface,
+                                             config.surfaceHeight());
     zwlr_layer_surface_v1_set_anchor(layerSurface,
                                      ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
                                          ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
@@ -74,20 +73,41 @@ void LayerSurface::onConfigure(void* data, zwlr_layer_surface_v1* layerSurface,
 
     zwlr_layer_surface_v1_ack_configure(layerSurface, serial);
 
-    int requestedWidth{
-        width ? static_cast<int>(width)
-              : static_cast<int>(config.dockWidth(
-                    static_cast<int>(config.items.size())))};
     int requestedHeight{
-        height ? static_cast<int>(height)
-               : static_cast<int>(config.surfaceHeight() +
-                                  config.extraAnimationSpace())};
+        std::max(static_cast<int>(height ? height : config.height()), 1)};
+    int requestedWidth{std::max(
+        static_cast<int>(width ? width : config.dockWidth(config.items.size())),
+        1)};
 
-    requestedWidth = std::max(requestedWidth, 1);
-    requestedHeight = std::max(requestedHeight, 1);
+    // if (width) {
+    //     self.width = width;
+    // } else if (self.width == 0) {
+    //     int fallbackWidth{static_cast<int>(
+    //         config.dockWidth(static_cast<int>(config.items.size())))};
+    //     self.width = std::max(fallbackWidth, 1);
+    // }
+    if (requestedWidth != self.width) {
+        self.width = requestedWidth;
+    }
 
-    self.width = requestedWidth;
-    self.height = requestedHeight;
+    if (self.height != requestedHeight) {
+        self.height = requestedHeight;
+
+        zwlr_layer_surface_v1_set_size(self.layerSurface, 0, self.height);
+        zwlr_layer_surface_v1_set_exclusive_zone(self.layerSurface,
+                                                 config.surfaceHeight());
+        zwlr_layer_surface_v1_set_anchor(
+            self.layerSurface, ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
+                                   ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
+                                   ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
+
+        int marginTop{static_cast<int>(config.margin.top)};
+        int marginRight{static_cast<int>(config.margin.right)};
+        int marginBottom{static_cast<int>(config.margin.bottom)};
+        int marginLeft{static_cast<int>(config.margin.left)};
+        zwlr_layer_surface_v1_set_margin(self.layerSurface, marginTop,
+                                         marginRight, marginBottom, marginLeft);
+    }
 
     char logBuffer[192];
     std::snprintf(logBuffer, sizeof(logBuffer),
