@@ -22,7 +22,7 @@ struct IconRenderer {
     IconRenderer(const IconRenderer&) = delete;
     IconRenderer& operator=(const IconRenderer&) = delete;
 
-    int load(const fs::path& path, int size);
+    int load(const fs::path& path);
     void draw(const fs::path& path, float cx, float cy, float size,
               float cornerRadius = -1.f);
 
@@ -30,13 +30,10 @@ struct IconRenderer {
     NVGcontext* vg;
     NSVGrasterizer* rast;
 
-    std::vector<int> allImages;
-    mutable LRUCache<std::string, int> cache{64};
+    mutable LRUCache<std::string, int> cache;
 
     int rasterizeSVG(const fs::path& path, int size);
     int loadPNG(const fs::path& path);
-
-    static std::string cacheKey(const fs::path& path, int size);
 };
 
 class IconIndex {

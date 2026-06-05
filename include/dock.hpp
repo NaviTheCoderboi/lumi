@@ -5,7 +5,8 @@
 
 #include "icon.hpp"
 
-void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, int w, int h,
+class LayerSurface;
+void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
                 float dt);
 
 #endif  // DOCK_HPP

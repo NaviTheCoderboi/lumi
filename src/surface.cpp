@@ -73,8 +73,12 @@ void LayerSurface::onConfigure(void* data, zwlr_layer_surface_v1* layerSurface,
 
     zwlr_layer_surface_v1_ack_configure(layerSurface, serial);
 
+    int desiredHeight = static_cast<int>(config.height());
+    if (ContextMenuState::get().isOpen) {
+        desiredHeight += static_cast<int>(ContextMenuState::get().height + 12.f);
+    }
     int requestedHeight{
-        std::max(static_cast<int>(height ? height : config.height()), 1)};
+        std::max(static_cast<int>(height ? height : desiredHeight), 1)};
     int requestedWidth{std::max(
         static_cast<int>(width ? width : config.dockWidth(config.items.size())),
         1)};

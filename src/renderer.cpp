@@ -14,6 +14,23 @@ Renderer::Renderer() {
         logger::error("NanoVG init failed");
         std::exit(1);
     }
+
+    int font = nvgCreateFont(vg, "sans", "/usr/share/fonts/Adwaita/AdwaitaSans-Regular.ttf");
+    if (font == -1) {
+        font = nvgCreateFont(vg, "sans", "/usr/share/fonts/TTF/JetBrainsMono-Medium.ttf");
+    }
+    if (font == -1) {
+        font = nvgCreateFont(vg, "sans", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf");
+    }
+    if (font == -1) {
+        font = nvgCreateFont(vg, "sans", "/usr/share/fonts/TTF/DejaVuSans.ttf");
+    }
+
+    if (font == -1) {
+        logger::warning("Could not load a valid system font for context menu!");
+    } else {
+        logger::info("Loaded context menu font successfully");
+    }
 }
 
 Renderer::~Renderer() {

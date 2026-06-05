@@ -7,16 +7,14 @@
 #include "logger.hpp"
 #include "utils.hpp"
 
-std::string IconRenderer::cacheKey(const fs::path& path, int size) {
-    return path.string() + '@' + std::to_string(size);
-}
-
 IconRenderer::IconRenderer(NVGcontext* vg)
-    : vg(vg), rast(nsvgCreateRasterizer()) {}
+    : vg(vg),
+      rast(nsvgCreateRasterizer()),
+      cache(64, [this](int img) {
+          if (img != -1) nvgDeleteImage(this->vg, img);
+      }) {}
 
 IconRenderer::~IconRenderer() {
-    for (int img : allImages) nvgDeleteImage(vg, img);
-
     nsvgDeleteRasterizer(rast);
 }
 
@@ -46,14 +44,14 @@ int IconRenderer::loadPNG(const fs::path& path) {
     return nvgCreateImage(vg, path.c_str(), 0);
 }
 
-int IconRenderer::load(const fs::path& path, int size) {
-    auto key{cacheKey(path, size)};
+int IconRenderer::load(const fs::path& path) {
+    auto key{path.string()};
 
     if (auto cached = cache.get(key); cached) return *cached;
 
     int img{-1};
     if (path.extension() == ".svg") {
-        img = rasterizeSVG(path, size);
+        img = rasterizeSVG(path, 128);
     } else if (path.extension() == ".png" || path.extension() == ".jpg") {
         img = loadPNG(path);
     } else {
@@ -62,14 +60,12 @@ int IconRenderer::load(const fs::path& path, int size) {
 
     cache.set(key, img);
 
-    if (img != -1) allImages.push_back(img);
-
     return img;
 }
 
 void IconRenderer::draw(const fs::path& path, float cx, float cy, float size,
                         float cornerRadius) {
-    int img{load(path, static_cast<int>(size))};
+    int img{load(path)};
     if (img == -1) return;
 
     float x{cx - size * 0.5f};

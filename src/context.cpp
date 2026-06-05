@@ -170,15 +170,23 @@ void WaylandContext::onPointerButton([[maybe_unused]] void* data, wl_pointer*,
                                      [[maybe_unused]] uint32_t serial,
                                      uint32_t /*time*/, uint32_t button,
                                      uint32_t state) {
-    if (button != 0x110) return;
-
     auto& mouseContext{MouseContext::get()};
 
-    if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
-        mouseContext.pressed = true;
-        mouseContext.clickX = mouseContext.x;
-        mouseContext.clickY = mouseContext.y;
-    } else {
-        mouseContext.pressed = false;
+    if (button == 0x110) {
+        if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
+            mouseContext.pressed = true;
+            mouseContext.clickX = mouseContext.x;
+            mouseContext.clickY = mouseContext.y;
+        } else {
+            mouseContext.pressed = false;
+        }
+    } else if (button == 0x111) {
+        if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
+            mouseContext.rightPressed = true;
+            mouseContext.rightClickX = mouseContext.x;
+            mouseContext.rightClickY = mouseContext.y;
+        } else {
+            mouseContext.rightPressed = false;
+        }
     }
 }

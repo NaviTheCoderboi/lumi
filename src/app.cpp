@@ -116,8 +116,19 @@ void App::launch() const {
         logger::warning("missing Exec for app: " + className);
         return;
     }
+    launchExec(*Exec);
+}
 
-    auto tokens{tokenizeExec(*Exec)};
+void App::launchAction(const Action& action) const {
+    if (action.exec.empty()) {
+        logger::warning("missing Exec for action: " + action.name);
+        return;
+    }
+    launchExec(action.exec);
+}
+
+void App::launchExec(const std::string& exec) const {
+    auto tokens{tokenizeExec(exec)};
 
     std::vector<std::string> args;
     for (auto& token : tokens) {
@@ -132,7 +143,7 @@ void App::launch() const {
     }
 
     if (args.empty()) {
-        logger::warning("no launch args for app: " + className);
+        logger::warning("no launch args for command: " + exec);
         return;
     }
 
@@ -214,31 +225,39 @@ void App::parseDesktopFile(const fs::path& path) {
 
     std::string line;
     while (std::getline(file, line)) {
-        if (line.starts_with("Icon=")) {
-            Icon = line.substr(5);
-        } else if (line.starts_with("Exec=")) {
-            Exec = line.substr(5);
-        } else if (line.starts_with("StartupWMClass=")) {
-            StartupWMClass = line.substr(16);
-        } else if (line.starts_with("[Desktop Action ")) {
-            if (insideActionDecl) {
-                if (currentAction) actions.push_back(std::move(*currentAction));
-                currentAction.reset();
-            }
+        if (line.empty()) continue;
 
+        if (line.starts_with("[Desktop Action ")) {
+            if (insideActionDecl && currentAction) {
+                actions.push_back(std::move(*currentAction));
+            }
             insideActionDecl = true;
             currentAction.emplace();
             currentAction->name = line.substr(16, line.size() - 17);
-        } else if (insideActionDecl && line.starts_with("Exec=")) {
-            if (currentAction) currentAction->exec = line.substr(5);
         } else if (line.starts_with('[')) {
-            insideActionDecl = false;
-            if (currentAction) {
+            if (insideActionDecl && currentAction) {
                 actions.push_back(std::move(*currentAction));
                 currentAction.reset();
+            }
+            insideActionDecl = false;
+        } else if (insideActionDecl) {
+            if (line.starts_with("Exec=")) {
+                if (currentAction) currentAction->exec = line.substr(5);
+            } else if (line.starts_with("Name=")) {
+                if (currentAction) currentAction->name = line.substr(5);
+            }
+        } else {
+            if (line.starts_with("Icon=")) {
+                Icon = line.substr(5);
+            } else if (line.starts_with("Exec=")) {
+                Exec = line.substr(5);
+            } else if (line.starts_with("StartupWMClass=")) {
+                StartupWMClass = line.substr(16);
             }
         }
     }
 
-    if (currentAction) actions.push_back(std::move(*currentAction));
-};
+    if (insideActionDecl && currentAction) {
+        actions.push_back(std::move(*currentAction));
+    }
+}

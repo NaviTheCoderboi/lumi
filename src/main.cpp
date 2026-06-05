@@ -82,11 +82,18 @@ int main() {
         float alpha{0.2f};
         smoothedDt += (dt - smoothedDt) * alpha;
 
-        float visualDockHeight{dockConfig.padding.vertical() +
-                               dockConfig.itemMargin.vertical() +
-                               dockConfig.itemSize};
-        int regionHeight{static_cast<int>(visualDockHeight)};
-        int regionY{ls.height - regionHeight};
+        int regionHeight;
+        int regionY;
+        if (ContextMenuState::get().isOpen) {
+            regionHeight = ls.height;
+            regionY = 0;
+        } else {
+            float visualDockHeight{dockConfig.padding.vertical() +
+                                   dockConfig.itemMargin.vertical() +
+                                   dockConfig.itemSize};
+            regionHeight = static_cast<int>(visualDockHeight);
+            regionY = ls.height - regionHeight;
+        }
 
         if (regionY < 0) regionY = 0;
         if (regionHeight < 0) regionHeight = 0;
@@ -96,7 +103,7 @@ int main() {
         renderer.clearViewport(ls.width, ls.height);
         renderer.beginFrame(ls.width, ls.height);
 
-        handleDock(renderer.vg, iconRenderer, ls.width, ls.height, smoothedDt);
+        handleDock(renderer.vg, iconRenderer, ls, smoothedDt);
 
         renderer.endFrame();
 

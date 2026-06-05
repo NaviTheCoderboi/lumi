@@ -20,6 +20,7 @@ class App {
     App(std::string className, bool isVirtual = false);
     bool matchesAppId(std::string_view appId) const;
     void launch() const;
+    void launchAction(const Action& action) const;
 
     // desktop entries
     std::optional<std::string> Icon;
@@ -35,6 +36,7 @@ class App {
     std::optional<fs::path> fuzzySearch() const;
 
     void parseDesktopFile(const fs::path& path);
+    void launchExec(const std::string& exec) const;
 };
 
 #endif  // APP_HPP

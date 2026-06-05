@@ -31,6 +31,10 @@ class MouseContext {
     float clickY{0.f};
     int lastClickIndex{-1};
 
+    bool rightPressed{false};
+    float rightClickX{0.f};
+    float rightClickY{0.f};
+
     static MouseContext& get() {
         static MouseContext instance;
         return instance;
@@ -42,6 +46,20 @@ class MouseContext {
     MouseContext& operator=(const MouseContext&) = delete;
     MouseContext(MouseContext&&) = default;
     MouseContext& operator=(MouseContext&&) = default;
+};
+
+struct ContextMenuState {
+    bool isOpen{false};
+    int sourceAppIndex{-1};
+    float x{0.f};
+    float y{0.f};
+    float width{0.f};
+    float height{0.f};
+
+    static ContextMenuState& get() {
+        static ContextMenuState instance;
+        return instance;
+    }
 };
 
 class WaylandContext {
