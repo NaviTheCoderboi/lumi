@@ -25,7 +25,11 @@ class LayerSurface {
 
     int width{0};
     int height{0};
+    int pendingWidth{0};
+    int pendingHeight{0};
     bool closed{false};
+    bool isResizing{false};
+    bool hasPendingResize{false};
 
     explicit LayerSurface();
     ~LayerSurface();
@@ -34,6 +38,7 @@ class LayerSurface {
     LayerSurface& operator=(const LayerSurface&) = delete;
 
     void setInputRegion(int x, int y, int width, int height);
+    void applyPendingResize();
 
    private:
     static void onConfigure(void* data, zwlr_layer_surface_v1* layerSurface,

@@ -59,6 +59,16 @@ void LayerSurface::setInputRegion(int x, int y, int width, int height) {
     wl_region_destroy(region);
 }
 
+void LayerSurface::applyPendingResize() {
+    if (!hasPendingResize || !eglWindow) return;
+
+    wl_egl_window_resize(eglWindow, pendingWidth, pendingHeight, 0, 0);
+    hasPendingResize = false;
+    isResizing = false;
+
+    wl_surface_commit(surface);
+}
+
 LayerSurface::~LayerSurface() {
     if (eglWindow) wl_egl_window_destroy(eglWindow);
     if (layerSurface) zwlr_layer_surface_v1_destroy(layerSurface);
@@ -72,6 +82,7 @@ void LayerSurface::onConfigure(void* data, zwlr_layer_surface_v1* layerSurface,
     DockConfig& config{DockConfig::get()};
 
     zwlr_layer_surface_v1_ack_configure(layerSurface, serial);
+    self.isResizing = false;
 
     int desiredHeight = static_cast<int>(config.height());
     if (ContextMenuState::get().isOpen) {
@@ -111,6 +122,13 @@ void LayerSurface::onConfigure(void* data, zwlr_layer_surface_v1* layerSurface,
         int marginLeft{static_cast<int>(config.margin.left)};
         zwlr_layer_surface_v1_set_margin(self.layerSurface, marginTop,
                                          marginRight, marginBottom, marginLeft);
+
+        if (self.eglWindow) {
+            self.pendingWidth = self.width;
+            self.pendingHeight = self.height;
+            self.hasPendingResize = true;
+            self.isResizing = true;
+        }
     }
 
     char logBuffer[192];
@@ -126,11 +144,11 @@ void LayerSurface::onConfigure(void* data, zwlr_layer_surface_v1* layerSurface,
             logger::error("failed to create wl_egl_window");
             return;
         }
-    } else {
-        wl_egl_window_resize(self.eglWindow, self.width, self.height, 0, 0);
     }
 
-    wl_surface_commit(self.surface);
+    if (!self.hasPendingResize) {
+        wl_surface_commit(self.surface);
+    }
 }
 
 void LayerSurface::onClosed(void* data, zwlr_layer_surface_v1*) {

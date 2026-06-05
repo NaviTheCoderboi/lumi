@@ -98,17 +98,27 @@ int main() {
         if (regionY < 0) regionY = 0;
         if (regionHeight < 0) regionHeight = 0;
 
-        ls.setInputRegion(0, regionY, ls.width, regionHeight);
+        static int lastRegionY{-1};
+        static int lastRegionHeight{-1};
+        if (regionY != lastRegionY || regionHeight != lastRegionHeight) {
+            ls.setInputRegion(0, regionY, ls.width, regionHeight);
+            lastRegionY = regionY;
+            lastRegionHeight = regionHeight;
+        }
 
-        renderer.clearViewport(ls.width, ls.height);
-        renderer.beginFrame(ls.width, ls.height);
+        ls.applyPendingResize();
 
-        handleDock(renderer.vg, iconRenderer, ls, smoothedDt);
+        if (!ls.isResizing) {
+            renderer.clearViewport(ls.width, ls.height);
+            renderer.beginFrame(ls.width, ls.height);
 
-        renderer.endFrame();
+            handleDock(renderer.vg, iconRenderer, ls, smoothedDt);
 
-        gfx.swapBuffers();
-        wl_surface_commit(ls.surface);
+            renderer.endFrame();
+
+            gfx.swapBuffers();
+            wl_surface_commit(ls.surface);
+        }
         wl_display_flush(wl.display);
     }
 

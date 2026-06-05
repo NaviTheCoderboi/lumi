@@ -54,6 +54,9 @@ class IconIndex {
     IconIndex& operator=(IconIndex&&) = delete;
 
     mutable std::unordered_map<std::string, fs::path> icons;
+    mutable std::unordered_map<std::string, fs::path> systemIcons;
+    mutable bool systemIconsIndexed{false};
+    void ensureSystemIconsIndexed() const;
     std::optional<fs::path> _find(std::string_view name) const;
 };
 

@@ -176,6 +176,7 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
             // Always close menu on click when open
             menuState.isOpen = false;
             menuState.sourceAppIndex = -1;
+            ls.isResizing = true;
             zwlr_layer_surface_v1_set_size(ls.layerSurface, 0, static_cast<int>(config.height()));
             wl_surface_commit(ls.surface);
         } else {
@@ -256,12 +257,14 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
                 }
 
                 int totalHeight = static_cast<int>(config.height() + menuState.height + 12.f);
+                ls.isResizing = true;
                 zwlr_layer_surface_v1_set_size(ls.layerSurface, 0, totalHeight);
                 wl_surface_commit(ls.surface);
             } else {
                 if (menuState.isOpen) {
                     menuState.isOpen = false;
                     menuState.sourceAppIndex = -1;
+                    ls.isResizing = true;
                     zwlr_layer_surface_v1_set_size(ls.layerSurface, 0, static_cast<int>(config.height()));
                     wl_surface_commit(ls.surface);
                 }
@@ -270,6 +273,7 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
             if (menuState.isOpen) {
                 menuState.isOpen = false;
                 menuState.sourceAppIndex = -1;
+                ls.isResizing = true;
                 zwlr_layer_surface_v1_set_size(ls.layerSurface, 0, static_cast<int>(config.height()));
                 wl_surface_commit(ls.surface);
             }

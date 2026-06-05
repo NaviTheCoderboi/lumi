@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "gtk.hpp"
 #include "logger.hpp"
 #include "utils.hpp"
 
@@ -95,68 +94,57 @@ IconIndex::IconIndex() {
     roots.emplace_back("/usr/share/pixmaps");
 }
 
-std::optional<fs::path> resolveWithGtk(const std::string& iconName,
-                                       int size = 64) {
-    static GtkAPI gtk;
+void IconIndex::ensureSystemIconsIndexed() const {
+    if (systemIconsIndexed) return;
 
-    if (!gtk.valid) return std::nullopt;
-
-    static bool initialized{false};
-    if (!initialized) {
-        gtk.gtkInit();
-        initialized = true;
-    }
-
-    void* display{gtk.getDisplay()};
-    if (!display) return std::nullopt;
-
-    void* theme{gtk.getTheme(display)};
-    if (!theme) return std::nullopt;
-
-    constexpr int GTK_TEXT_DIR_NONE{0};
-    constexpr int GTK_ICON_LOOKUP_FORCE_REGULAR{0};
-
-    void* paintable{gtk.lookupIcon(theme, iconName.c_str(), nullptr, size, 1,
-                                   GTK_TEXT_DIR_NONE,
-                                   GTK_ICON_LOOKUP_FORCE_REGULAR)};
-    if (!paintable) return std::nullopt;
-
-    void* file{gtk.getFile(paintable)};
-    if (!file) {
-        gtk.unref(paintable);
-        return std::nullopt;
-    }
-
-    char* path{gtk.getPath(file)};
-
-    if (!path) {
-        gtk.unref(file);
-        gtk.unref(paintable);
-        return std::nullopt;
-    }
-
-    fs::path result(path);
-
-    gtk.freeMem(path);
-    gtk.unref(file);
-    gtk.unref(paintable);
-
-    return result;
-}
-
-std::optional<fs::path> IconIndex::_find(std::string_view name) const {
     for (const auto& root : roots) {
-        if (!fs::exists(root)) continue;
+        std::error_code ec;
+        if (!fs::exists(root, ec)) continue;
 
-        for (const auto& entry : fs::recursive_directory_iterator(root)) {
-            if (!entry.is_regular_file()) continue;
+        auto it = fs::recursive_directory_iterator(root, fs::directory_options::skip_permission_denied, ec);
+        if (ec) continue;
 
-            if (entry.path().stem() == name) return entry.path();
+        auto end = fs::end(it);
+        while (it != end) {
+            std::error_code fileEc;
+            const auto& entry = *it;
+            bool isReg = entry.is_regular_file(fileEc);
+            if (!fileEc && isReg) {
+                auto path = entry.path();
+                auto ext = path.extension();
+                if (ext == ".png" || ext == ".svg" || ext == ".xpm" || ext == ".jpg") {
+                    auto name = path.stem().string();
+
+                    auto sysIt = systemIcons.find(name);
+                    if (sysIt == systemIcons.end()) {
+                        systemIcons.emplace(name, path);
+                    } else {
+                        // Prefer SVG icons for high scaling quality
+                        if (ext == ".svg") {
+                            sysIt->second = path;
+                        }
+                    }
+                }
+            }
+            it.increment(ec);
+            if (ec) {
+                break;
+            }
         }
     }
 
+    systemIconsIndexed = true;
+}
+
+std::optional<fs::path> IconIndex::_find(std::string_view name) const {
+    ensureSystemIconsIndexed();
+
+    auto it = systemIcons.find(std::string(name));
+    if (it != systemIcons.end()) {
+        return it->second;
+    }
     return std::nullopt;
-};
+}
 
 std::optional<fs::path> IconIndex::find(App& app) const {
     if (!app.Icon) return std::nullopt;
@@ -170,8 +158,6 @@ std::optional<fs::path> IconIndex::find(App& app) const {
 
     if (p.is_absolute() && fs::exists(p)) {
         resolvedPath = p;
-    } else if (auto gtkPath{resolveWithGtk(*app.Icon)}; gtkPath) {
-        resolvedPath = *gtkPath;
     } else if (auto foundPath{_find(*app.Icon)}; foundPath) {
         resolvedPath = *foundPath;
     } else {
@@ -182,7 +168,7 @@ std::optional<fs::path> IconIndex::find(App& app) const {
     icons.emplace(*app.Icon, resolvedPath);
 
     return resolvedPath;
-};
+}
 
 void IconIndex::preload(const std::vector<App>& apps) {
     for (const auto& app : apps) find(const_cast<App&>(app));
