@@ -24,6 +24,12 @@ inline void error(std::string_view msg) noexcept {
     std::fputc('\n', stderr);
 }
 
+inline void debug(std::string_view msg) noexcept {
+    std::fwrite("[DEBUG] ", 1, 8, stdout);
+    std::fwrite(msg.data(), 1, msg.size(), stdout);
+    std::fputc('\n', stdout);
+}
+
 }  // namespace logger
 
 #endif  // LOGGER_HPP

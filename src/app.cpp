@@ -225,39 +225,31 @@ void App::parseDesktopFile(const fs::path& path) {
 
     std::string line;
     while (std::getline(file, line)) {
-        if (line.empty()) continue;
-
-        if (line.starts_with("[Desktop Action ")) {
-            if (insideActionDecl && currentAction) {
-                actions.push_back(std::move(*currentAction));
+        if (line.starts_with("Icon=")) {
+            Icon = line.substr(5);
+        } else if (line.starts_with("Exec=")) {
+            Exec = line.substr(5);
+        } else if (line.starts_with("StartupWMClass=")) {
+            StartupWMClass = line.substr(16);
+        } else if (line.starts_with("[Desktop Action ")) {
+            if (insideActionDecl) {
+                if (currentAction) actions.push_back(std::move(*currentAction));
+                currentAction.reset();
             }
+
             insideActionDecl = true;
             currentAction.emplace();
             currentAction->name = line.substr(16, line.size() - 17);
+        } else if (insideActionDecl && line.starts_with("Exec=")) {
+            if (currentAction) currentAction->exec = line.substr(5);
         } else if (line.starts_with('[')) {
-            if (insideActionDecl && currentAction) {
+            insideActionDecl = false;
+            if (currentAction) {
                 actions.push_back(std::move(*currentAction));
                 currentAction.reset();
-            }
-            insideActionDecl = false;
-        } else if (insideActionDecl) {
-            if (line.starts_with("Exec=")) {
-                if (currentAction) currentAction->exec = line.substr(5);
-            } else if (line.starts_with("Name=")) {
-                if (currentAction) currentAction->name = line.substr(5);
-            }
-        } else {
-            if (line.starts_with("Icon=")) {
-                Icon = line.substr(5);
-            } else if (line.starts_with("Exec=")) {
-                Exec = line.substr(5);
-            } else if (line.starts_with("StartupWMClass=")) {
-                StartupWMClass = line.substr(16);
             }
         }
     }
 
-    if (insideActionDecl && currentAction) {
-        actions.push_back(std::move(*currentAction));
-    }
-}
+    if (currentAction) actions.push_back(std::move(*currentAction));
+};

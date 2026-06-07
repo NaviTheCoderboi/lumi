@@ -170,6 +170,8 @@ void WaylandContext::onPointerButton([[maybe_unused]] void* data, wl_pointer*,
                                      [[maybe_unused]] uint32_t serial,
                                      uint32_t /*time*/, uint32_t button,
                                      uint32_t state) {
+    if (button != 0x110) return;
+
     auto& mouseContext{MouseContext::get()};
 
     if (button == 0x110) {

@@ -27,3 +27,28 @@ std::string toLower(std::string_view str) {
     std::ranges::transform(result, result.begin(), ::tolower);
     return result;
 };
+
+std::expected<std::string, std::string> execCommand(std::string_view command) {
+    std::string result;
+
+    FILE* pipe{popen(command.data(), "r")};
+    if (!pipe) {
+        return std::unexpected{"failed to execute command"};
+    }
+
+    char buffer[128];
+    while (fgets(buffer, sizeof(buffer), pipe)) {
+        result += buffer;
+    }
+
+    int returnCode{pclose(pipe)};
+    if (returnCode != 0) {
+        return std::unexpected{"command returned non-zero exit code"};
+    }
+
+    if (!result.empty() && result.back() == '\n') {
+        result.pop_back();
+    }
+
+    return result;
+}

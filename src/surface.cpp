@@ -84,12 +84,8 @@ void LayerSurface::onConfigure(void* data, zwlr_layer_surface_v1* layerSurface,
     zwlr_layer_surface_v1_ack_configure(layerSurface, serial);
     self.isResizing = false;
 
-    int desiredHeight = static_cast<int>(config.height());
-    if (ContextMenuState::get().isOpen) {
-        desiredHeight += static_cast<int>(ContextMenuState::get().height + 12.f);
-    }
     int requestedHeight{
-        std::max(static_cast<int>(height ? height : desiredHeight), 1)};
+        std::max(static_cast<int>(height ? height : config.height()), 1)};
     int requestedWidth{std::max(
         static_cast<int>(width ? width : config.dockWidth(config.items.size())),
         1)};
@@ -122,13 +118,6 @@ void LayerSurface::onConfigure(void* data, zwlr_layer_surface_v1* layerSurface,
         int marginLeft{static_cast<int>(config.margin.left)};
         zwlr_layer_surface_v1_set_margin(self.layerSurface, marginTop,
                                          marginRight, marginBottom, marginLeft);
-
-        if (self.eglWindow) {
-            self.pendingWidth = self.width;
-            self.pendingHeight = self.height;
-            self.hasPendingResize = true;
-            self.isResizing = true;
-        }
     }
 
     char logBuffer[192];
