@@ -116,8 +116,9 @@ int main() {
 
             renderer.endFrame();
 
-        gfx.swapBuffers();
-        wl_surface_commit(ls.surface);
+            gfx.swapBuffers();
+            wl_surface_commit(ls.surface);
+        }
         wl_display_flush(wl.display);
     }
 
