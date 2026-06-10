@@ -86,7 +86,8 @@ void LayerSurface::onConfigure(void* data, zwlr_layer_surface_v1* layerSurface,
 
     int desiredHeight = static_cast<int>(config.height());
     if (ContextMenuState::get().isOpen) {
-        float maxRise = config.itemSize * (config.maxScale - 1.f) + config.maxLiftAmount;
+        float maxScaleRise = (config.maxScale > 1.f) ? (config.itemSize * (config.maxScale - 1.f)) : 0.f;
+        float maxRise = maxScaleRise + config.maxLiftAmount;
         desiredHeight += static_cast<int>(ContextMenuState::get().height + 12.f + maxRise);
     }
 

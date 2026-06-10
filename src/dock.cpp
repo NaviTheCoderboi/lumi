@@ -90,7 +90,7 @@ static void updateDockAnimations(std::vector<DockItem>& items, float mouseX,
         influence *= influence;
 
         float targetScale{1.f + influence * (config.maxScale - 1.f)};
-        float targetLift{-influence * config.maxLiftAmount};
+        float targetLift{(config.maxScale == 1.f) ? 0.f : -influence * config.maxLiftAmount};
 
         items[i].scaleSpring.setTarget(targetScale);
         items[i].liftSpring.setTarget(targetLift);
@@ -252,7 +252,8 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
                 menuState.height = (actions.size() * menuItemHeight) + padding;
                 menuState.width = 180.f;
 
-                float maxRise = baseSize * (config.maxScale - 1.f) + config.maxLiftAmount;
+                float maxScaleRise = (config.maxScale > 1.f) ? (baseSize * (config.maxScale - 1.f)) : 0.f;
+                float maxRise = maxScaleRise + config.maxLiftAmount;
                 int totalHeight = static_cast<int>(config.height() + menuState.height + 12.f + maxRise);
                 zwlr_layer_surface_v1_set_size(ls.layerSurface, 0, totalHeight);
                 wl_surface_commit(ls.surface);
