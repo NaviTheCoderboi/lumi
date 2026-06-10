@@ -213,6 +213,14 @@ std::optional<fs::path> App::fuzzySearch() const {
     return std::nullopt;
 }
 
+static std::string trim(std::string_view str) {
+    if (str.empty()) return {};
+    std::size_t first = str.find_first_not_of(" \t\r\n");
+    if (first == std::string_view::npos) return {};
+    std::size_t last = str.find_last_not_of(" \t\r\n");
+    return std::string(str.substr(first, last - first + 1));
+}
+
 void App::parseDesktopFile(const fs::path& path) {
     std::ifstream file(path);
     if (!file.is_open()) {
@@ -220,36 +228,65 @@ void App::parseDesktopFile(const fs::path& path) {
         return;
     }
 
-    bool insideActionDecl{false};
+    std::string currentSection;
     std::optional<Action> currentAction;
 
-    std::string line;
-    while (std::getline(file, line)) {
-        if (line.starts_with("Icon=")) {
-            Icon = line.substr(5);
-        } else if (line.starts_with("Exec=")) {
-            Exec = line.substr(5);
-        } else if (line.starts_with("StartupWMClass=")) {
-            StartupWMClass = line.substr(16);
-        } else if (line.starts_with("[Desktop Action ")) {
-            if (insideActionDecl) {
-                if (currentAction) actions.push_back(std::move(*currentAction));
-                currentAction.reset();
+    std::string rawLine;
+    while (std::getline(file, rawLine)) {
+        std::string line = trim(rawLine);
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+
+        if (line.front() == '[' && line.back() == ']') {
+            std::string sectionName = trim(line.substr(1, line.size() - 2));
+
+            if (currentSection.starts_with("Desktop Action ")) {
+                if (currentAction) {
+                    actions.push_back(std::move(*currentAction));
+                    currentAction.reset();
+                }
             }
 
-            insideActionDecl = true;
-            currentAction.emplace();
-            currentAction->name = line.substr(16, line.size() - 17);
-        } else if (insideActionDecl && line.starts_with("Exec=")) {
-            if (currentAction) currentAction->exec = line.substr(5);
-        } else if (line.starts_with('[')) {
-            insideActionDecl = false;
+            currentSection = sectionName;
+
+            if (currentSection.starts_with("Desktop Action ")) {
+                std::string actionId = trim(currentSection.substr(15));
+                currentAction.emplace();
+                currentAction->name = actionId;
+                currentAction->displayName = actionId;
+            }
+            continue;
+        }
+
+        std::size_t eqPos = line.find('=');
+        if (eqPos == std::string::npos) {
+            continue;
+        }
+
+        std::string key = trim(line.substr(0, eqPos));
+        std::string val = trim(line.substr(eqPos + 1));
+
+        if (currentSection == "Desktop Entry") {
+            if (key == "Icon") {
+                Icon = val;
+            } else if (key == "Exec") {
+                Exec = val;
+            } else if (key == "StartupWMClass") {
+                StartupWMClass = val;
+            }
+        } else if (currentSection.starts_with("Desktop Action ")) {
             if (currentAction) {
-                actions.push_back(std::move(*currentAction));
-                currentAction.reset();
+                if (key == "Exec") {
+                    currentAction->exec = val;
+                } else if (key == "Name") {
+                    currentAction->displayName = val;
+                }
             }
         }
     }
 
-    if (currentAction) actions.push_back(std::move(*currentAction));
-};
+    if (currentSection.starts_with("Desktop Action ") && currentAction) {
+        actions.push_back(std::move(*currentAction));
+    }
+}

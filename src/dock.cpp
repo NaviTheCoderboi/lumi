@@ -127,11 +127,6 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
     float dockY{h - visualDockHeight};
     float startX{dockX + config.padding.left + config.itemMargin.left};
 
-    // Calculate menu Y-coordinate if open so that clicks are evaluated with the correct geometry
-    if (menuState.isOpen) {
-        menuState.y = dockY - menuState.height - 12.f;
-    }
-
     float hoverX{mouseCtx.inside ? mouseCtx.x : -9999.f};
     float hoverY{mouseCtx.inside ? mouseCtx.y : -9999.f};
     float baseBottomY{dockY + config.padding.top + config.itemMargin.top +
@@ -153,7 +148,25 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
 
     dockX = (w - animatedWidth) * 0.5f;
 
-    // Handle Left Clicks
+    if (menuState.isOpen && menuState.sourceAppIndex >= 0 && menuState.sourceAppIndex < itemCount) {
+        float iconX = dockX + config.padding.left + config.itemMargin.left;
+        for (int i = 0; i < menuState.sourceAppIndex; ++i) {
+            iconX += baseSize * items[i].scale() + spacing;
+        }
+        float iconSize = baseSize * items[menuState.sourceAppIndex].scale();
+        float iconCenterX = iconX + iconSize * 0.5f;
+        menuState.x = iconCenterX - menuState.width * 0.5f;
+
+        if (menuState.x < 10.f) menuState.x = 10.f;
+        if (menuState.x + menuState.width > w - 10.f) {
+            menuState.x = w - menuState.width - 10.f;
+        }
+
+        float iconBottom = baseBottomY + items[menuState.sourceAppIndex].lift();
+        float iconTop = iconBottom - iconSize;
+        menuState.y = iconTop - menuState.height - 12.f;
+    }
+
     static bool prevPressed{false};
     if (mouseCtx.pressed && !prevPressed) {
         if (menuState.isOpen) {
@@ -162,7 +175,6 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
 
             if (mx >= menuState.x && mx <= menuState.x + menuState.width &&
                 my >= menuState.y && my <= menuState.y + menuState.height) {
-                // Clicked inside context menu
                 float relativeY = my - menuState.y - 8.f;
                 int actionIndex = static_cast<int>(relativeY / 36.f);
 
@@ -173,10 +185,8 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
                 }
             }
 
-            // Always close menu on click when open
             menuState.isOpen = false;
             menuState.sourceAppIndex = -1;
-            ls.isResizing = true;
             zwlr_layer_surface_v1_set_size(ls.layerSurface, 0, static_cast<int>(config.height()));
             wl_surface_commit(ls.surface);
         } else {
@@ -242,29 +252,14 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
                 menuState.height = (actions.size() * menuItemHeight) + padding;
                 menuState.width = 180.f;
 
-                // Re-calculate the horizontal start of the clicked icon to center the menu
-                float clickCx = dockX + config.padding.left + config.itemMargin.left;
-                for (int i{0}; i < clickedIndex; i++) {
-                    clickCx += baseSize * items[i].scale() + spacing;
-                }
-                float iconSize{baseSize * clickedItem.scale()};
-                float iconCenterX = clickCx + iconSize * 0.5f;
-                menuState.x = iconCenterX - menuState.width * 0.5f;
-
-                if (menuState.x < 10.f) menuState.x = 10.f;
-                if (menuState.x + menuState.width > w - 10.f) {
-                    menuState.x = w - menuState.width - 10.f;
-                }
-
-                int totalHeight = static_cast<int>(config.height() + menuState.height + 12.f);
-                ls.isResizing = true;
+                float maxRise = baseSize * (config.maxScale - 1.f) + config.maxLiftAmount;
+                int totalHeight = static_cast<int>(config.height() + menuState.height + 12.f + maxRise);
                 zwlr_layer_surface_v1_set_size(ls.layerSurface, 0, totalHeight);
                 wl_surface_commit(ls.surface);
             } else {
                 if (menuState.isOpen) {
                     menuState.isOpen = false;
                     menuState.sourceAppIndex = -1;
-                    ls.isResizing = true;
                     zwlr_layer_surface_v1_set_size(ls.layerSurface, 0, static_cast<int>(config.height()));
                     wl_surface_commit(ls.surface);
                 }
@@ -273,7 +268,6 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
             if (menuState.isOpen) {
                 menuState.isOpen = false;
                 menuState.sourceAppIndex = -1;
-                ls.isResizing = true;
                 zwlr_layer_surface_v1_set_size(ls.layerSurface, 0, static_cast<int>(config.height()));
                 wl_surface_commit(ls.surface);
             }
@@ -315,7 +309,6 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
         currentX += iconSize + spacing;
     }
 
-    // Draw the Context Menu (if open)
     if (menuState.isOpen && menuState.sourceAppIndex >= 0 && menuState.sourceAppIndex < itemCount) {
         drawGlassDock(vg, menuState.x, menuState.y, menuState.width, menuState.height, 12.f);
 
@@ -350,7 +343,7 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
                 nvgFillColor(vg, nvgRGBAf(1.f, 1.f, 1.f, 0.75f));
             }
 
-            nvgText(vg, menuState.x + 16.f, rowY + 18.f, actions[i].name.c_str(), nullptr);
+            nvgText(vg, menuState.x + 16.f, rowY + 18.f, actions[i].displayName.c_str(), nullptr);
         }
     }
 }

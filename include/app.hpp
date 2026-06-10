@@ -10,6 +10,7 @@ namespace fs = std::filesystem;
 
 struct Action {
     std::string name;
+    std::string displayName;
     std::string exec;
 };
 

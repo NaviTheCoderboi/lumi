@@ -84,25 +84,27 @@ void LayerSurface::onConfigure(void* data, zwlr_layer_surface_v1* layerSurface,
     zwlr_layer_surface_v1_ack_configure(layerSurface, serial);
     self.isResizing = false;
 
+    int desiredHeight = static_cast<int>(config.height());
+    if (ContextMenuState::get().isOpen) {
+        float maxRise = config.itemSize * (config.maxScale - 1.f) + config.maxLiftAmount;
+        desiredHeight += static_cast<int>(ContextMenuState::get().height + 12.f + maxRise);
+    }
+
     int requestedHeight{
-        std::max(static_cast<int>(height ? height : config.height()), 1)};
+        std::max(static_cast<int>(height ? height : desiredHeight), 1)};
     int requestedWidth{std::max(
         static_cast<int>(width ? width : config.dockWidth(config.items.size())),
         1)};
 
-    // if (width) {
-    //     self.width = width;
-    // } else if (self.width == 0) {
-    //     int fallbackWidth{static_cast<int>(
-    //         config.dockWidth(static_cast<int>(config.items.size())))};
-    //     self.width = std::max(fallbackWidth, 1);
-    // }
+    bool sizeChanged = false;
     if (requestedWidth != self.width) {
         self.width = requestedWidth;
+        sizeChanged = true;
     }
 
     if (self.height != requestedHeight) {
         self.height = requestedHeight;
+        sizeChanged = true;
 
         zwlr_layer_surface_v1_set_size(self.layerSurface, 0, self.height);
         zwlr_layer_surface_v1_set_exclusive_zone(self.layerSurface,
@@ -118,6 +120,13 @@ void LayerSurface::onConfigure(void* data, zwlr_layer_surface_v1* layerSurface,
         int marginLeft{static_cast<int>(config.margin.left)};
         zwlr_layer_surface_v1_set_margin(self.layerSurface, marginTop,
                                          marginRight, marginBottom, marginLeft);
+    }
+
+    if (sizeChanged && self.eglWindow) {
+        self.pendingWidth = self.width;
+        self.pendingHeight = self.height;
+        self.hasPendingResize = true;
+        self.isResizing = true;
     }
 
     char logBuffer[192];
