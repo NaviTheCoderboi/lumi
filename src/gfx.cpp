@@ -6,7 +6,10 @@
 
 #include "logger.hpp"
 
+GfxContext* g_gfxContext = nullptr;
+
 GfxContext::GfxContext(WaylandContext& wl, LayerSurface& ls) {
+    g_gfxContext = this;
     display = eglGetDisplay(reinterpret_cast<EGLNativeDisplayType>(wl.display));
 
     if (display == EGL_NO_DISPLAY ||
@@ -31,7 +34,6 @@ GfxContext::GfxContext(WaylandContext& wl, LayerSurface& ls) {
                                            8,
                                            EGL_NONE};
 
-    EGLConfig config;
     EGLint numConfigs;
     eglChooseConfig(display, configAttributes, &config, 1, &numConfigs);
 
@@ -53,6 +55,7 @@ GfxContext::GfxContext(WaylandContext& wl, LayerSurface& ls) {
 }
 
 GfxContext::~GfxContext() {
+    g_gfxContext = nullptr;
     eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
     if (surface != EGL_NO_SURFACE) eglDestroySurface(display, surface);

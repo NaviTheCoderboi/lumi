@@ -11,6 +11,7 @@ class GfxContext {
     EGLDisplay display{EGL_NO_DISPLAY};
     EGLContext context{EGL_NO_CONTEXT};
     EGLSurface surface{EGL_NO_SURFACE};
+    EGLConfig config{nullptr};
 
     GfxContext(WaylandContext& wl, LayerSurface& ls);
     ~GfxContext();
@@ -20,5 +21,7 @@ class GfxContext {
 
     void swapBuffers() const;
 };
+
+extern GfxContext* g_gfxContext;
 
 #endif  // GFX_HPP

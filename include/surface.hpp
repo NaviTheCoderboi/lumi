@@ -3,6 +3,7 @@
 
 #include <wayland-client.h>
 #include <wayland-egl.h>
+#include <EGL/egl.h>
 
 #include <cstdint>
 
@@ -12,10 +13,25 @@ extern "C" {
 
 #define namespace ns
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
+#include "xdg-shell-client-protocol.h"
 #undef namespace
 
 #pragma clang diagnostic pop
 }
+
+struct PopupSurface {
+    wl_surface* surface{nullptr};
+    xdg_surface* xdgSurface{nullptr};
+    xdg_popup* xdgPopup{nullptr};
+
+    wl_egl_window* eglWindow{nullptr};
+    EGLSurface eglSurface{EGL_NO_SURFACE};
+
+    int width{0};
+    int height{0};
+    int sourceAppIndex{-1};
+    bool isConfigured{false};
+};
 
 class LayerSurface {
    public:
@@ -51,5 +67,9 @@ class LayerSurface {
         .closed = onClosed,
     };
 };
+
+extern PopupSurface popupSurface;
+void createPopup(LayerSurface& ls, int appIndex, int iconX, int iconY, int iconWidth, int iconHeight, int menuWidth, int menuHeight, uint32_t serial);
+void destroyPopup();
 
 #endif  // SURFACE_HPP

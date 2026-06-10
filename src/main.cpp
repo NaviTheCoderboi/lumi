@@ -82,18 +82,11 @@ int main() {
         float alpha{0.2f};
         smoothedDt += (dt - smoothedDt) * alpha;
 
-        int regionHeight;
-        int regionY;
-        if (ContextMenuState::get().isOpen) {
-            regionHeight = ls.height;
-            regionY = 0;
-        } else {
-            float visualDockHeight{dockConfig.padding.vertical() +
-                                   dockConfig.itemMargin.vertical() +
-                                   dockConfig.itemSize};
-            regionHeight = static_cast<int>(visualDockHeight);
-            regionY = ls.height - regionHeight;
-        }
+        float visualDockHeight{dockConfig.padding.vertical() +
+                               dockConfig.itemMargin.vertical() +
+                               dockConfig.itemSize};
+        int regionHeight = static_cast<int>(visualDockHeight);
+        int regionY = ls.height - regionHeight;
 
         if (regionY < 0) regionY = 0;
         if (regionHeight < 0) regionHeight = 0;
@@ -109,6 +102,10 @@ int main() {
         ls.applyPendingResize();
 
         if (!ls.isResizing) {
+            if (g_gfxContext && popupSurface.isConfigured && popupSurface.eglSurface != EGL_NO_SURFACE) {
+                eglMakeCurrent(g_gfxContext->display, g_gfxContext->surface, g_gfxContext->surface, g_gfxContext->context);
+            }
+
             renderer.clearViewport(ls.width, ls.height);
             renderer.beginFrame(ls.width, ls.height);
 
@@ -117,6 +114,21 @@ int main() {
             renderer.endFrame();
 
             gfx.swapBuffers();
+            
+            if (g_gfxContext && popupSurface.isConfigured && popupSurface.eglSurface != EGL_NO_SURFACE) {
+                eglMakeCurrent(g_gfxContext->display, popupSurface.eglSurface, popupSurface.eglSurface, g_gfxContext->context);
+                
+                renderer.clearViewport(popupSurface.width, popupSurface.height);
+                renderer.beginFrame(popupSurface.width, popupSurface.height);
+                
+                handlePopup(renderer.vg, popupSurface);
+                
+                renderer.endFrame();
+                eglSwapBuffers(g_gfxContext->display, popupSurface.eglSurface);
+                
+                eglMakeCurrent(g_gfxContext->display, g_gfxContext->surface, g_gfxContext->surface, g_gfxContext->context);
+            }
+
             wl_surface_commit(ls.surface);
         }
         wl_display_flush(wl.display);

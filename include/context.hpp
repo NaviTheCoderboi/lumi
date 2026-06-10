@@ -8,6 +8,7 @@
 #include "ext-foreign-toplevel-list-v1-client-protocol.h"
 #include "toplevel.hpp"
 #include "wlr-foreign-toplevel-management-unstable-v1-client-protocol.h"
+#include "xdg-shell-client-protocol.h"
 
 extern "C" {
 #pragma clang diagnostic push
@@ -34,6 +35,7 @@ class MouseContext {
     bool rightPressed{false};
     float rightClickX{0.f};
     float rightClickY{0.f};
+    uint32_t rightClickSerial{0};
 
     static MouseContext& get() {
         static MouseContext instance;
@@ -48,25 +50,12 @@ class MouseContext {
     MouseContext& operator=(MouseContext&&) = default;
 };
 
-struct ContextMenuState {
-    bool isOpen{false};
-    int sourceAppIndex{-1};
-    float x{0.f};
-    float y{0.f};
-    float width{0.f};
-    float height{0.f};
-
-    static ContextMenuState& get() {
-        static ContextMenuState instance;
-        return instance;
-    }
-};
-
 class WaylandContext {
    public:
     wl_display* display{nullptr};
     wl_compositor* compositor{nullptr};
     zwlr_layer_shell_v1* layerShell{nullptr};
+    xdg_wm_base* xdgWmBase{nullptr};
     ext_foreign_toplevel_list_v1* extToplevelManager{nullptr};
     zwlr_foreign_toplevel_manager_v1* wlrToplevelManager{nullptr};
 

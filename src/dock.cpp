@@ -106,10 +106,7 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
 
     auto& config{DockConfig::get()};
     auto& mouseCtx{MouseContext::get()};
-    auto& iconIndex{IconIndex::get()};
-    auto& menuState{ContextMenuState::get()};
-
-    auto& items{config.items};
+    auto& iconIndex{IconIndex::get()};    auto& items{config.items};
     int itemCount{static_cast<int>(items.size())};
 
     if (itemCount == 0) return;
@@ -148,72 +145,37 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
 
     dockX = (w - animatedWidth) * 0.5f;
 
-    if (menuState.isOpen && menuState.sourceAppIndex >= 0 && menuState.sourceAppIndex < itemCount) {
-        float iconX = dockX + config.padding.left + config.itemMargin.left;
-        for (int i = 0; i < menuState.sourceAppIndex; ++i) {
-            iconX += baseSize * items[i].scale() + spacing;
-        }
-        float iconSize = baseSize * items[menuState.sourceAppIndex].scale();
-        float iconCenterX = iconX + iconSize * 0.5f;
-        menuState.x = iconCenterX - menuState.width * 0.5f;
 
-        if (menuState.x < 10.f) menuState.x = 10.f;
-        if (menuState.x + menuState.width > w - 10.f) {
-            menuState.x = w - menuState.width - 10.f;
-        }
-
-        float iconBottom = baseBottomY + items[menuState.sourceAppIndex].lift();
-        float iconTop = iconBottom - iconSize;
-        menuState.y = iconTop - menuState.height - 12.f;
-    }
 
     static bool prevPressed{false};
     if (mouseCtx.pressed && !prevPressed) {
-        if (menuState.isOpen) {
-            float mx = mouseCtx.clickX;
-            float my = mouseCtx.clickY;
+        if (popupSurface.surface) {
+            destroyPopup();
+        }
 
-            if (mx >= menuState.x && mx <= menuState.x + menuState.width &&
-                my >= menuState.y && my <= menuState.y + menuState.height) {
-                float relativeY = my - menuState.y - 8.f;
-                int actionIndex = static_cast<int>(relativeY / 36.f);
+        float cx{dockX + config.padding.left + config.itemMargin.left};
 
-                auto& clickedItem{items.at(menuState.sourceAppIndex)};
-                const auto& actions = clickedItem.app.actions;
-                if (actionIndex >= 0 && actionIndex < static_cast<int>(actions.size())) {
-                    clickedItem.app.launchAction(actions[actionIndex]);
-                }
+        mouseCtx.lastClickIndex = -1;
+
+        for (int i{0}; i < itemCount; i++) {
+            float iconSize{baseSize * items[i].scale()};
+            float iconBottom{baseBottomY + items[i].lift()};
+            float iconTop{iconBottom - iconSize};
+            bool insideY{mouseCtx.clickY >= iconTop &&
+                         mouseCtx.clickY <= iconBottom};
+
+            if (insideY && mouseCtx.clickX >= cx &&
+                mouseCtx.clickX <= cx + iconSize) {
+                mouseCtx.lastClickIndex = i;
+                break;
             }
 
-            menuState.isOpen = false;
-            menuState.sourceAppIndex = -1;
-            zwlr_layer_surface_v1_set_size(ls.layerSurface, 0, static_cast<int>(config.height()));
-            wl_surface_commit(ls.surface);
-        } else {
-            float cx{dockX + config.padding.left + config.itemMargin.left};
+            cx += iconSize + spacing;
+        }
 
-            mouseCtx.lastClickIndex = -1;
-
-            for (int i{0}; i < itemCount; i++) {
-                float iconSize{baseSize * items[i].scale()};
-                float iconBottom{baseBottomY + items[i].lift()};
-                float iconTop{iconBottom - iconSize};
-                bool insideY{mouseCtx.clickY >= iconTop &&
-                             mouseCtx.clickY <= iconBottom};
-
-                if (insideY && mouseCtx.clickX >= cx &&
-                    mouseCtx.clickX <= cx + iconSize) {
-                    mouseCtx.lastClickIndex = i;
-                    break;
-                }
-
-                cx += iconSize + spacing;
-            }
-
-            if (mouseCtx.lastClickIndex != -1) {
-                auto& clickedItem{items.at(mouseCtx.lastClickIndex)};
-                clickedItem.app.launch();
-            }
+        if (mouseCtx.lastClickIndex != -1) {
+            auto& clickedItem{items.at(mouseCtx.lastClickIndex)};
+            clickedItem.app.launch();
         }
     }
     prevPressed = mouseCtx.pressed;
@@ -223,6 +185,9 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
     if (mouseCtx.rightPressed && !prevRightPressed) {
         float cx{dockX + config.padding.left + config.itemMargin.left};
         int clickedIndex = -1;
+        float clickedIconX = 0.f;
+        float clickedIconY = 0.f;
+        float clickedIconSize = 0.f;
 
         for (int i{0}; i < itemCount; i++) {
             float iconSize{baseSize * items[i].scale()};
@@ -234,6 +199,9 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
             if (insideY && mouseCtx.rightClickX >= cx &&
                 mouseCtx.rightClickX <= cx + iconSize) {
                 clickedIndex = i;
+                clickedIconX = cx;
+                clickedIconY = iconTop;
+                clickedIconSize = iconSize;
                 break;
             }
 
@@ -244,34 +212,17 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
             auto& clickedItem{items.at(clickedIndex)};
             const auto& actions = clickedItem.app.actions;
             if (!actions.empty()) {
-                menuState.isOpen = true;
-                menuState.sourceAppIndex = clickedIndex;
-
                 float menuItemHeight = 36.f;
                 float padding = 16.f;
-                menuState.height = (actions.size() * menuItemHeight) + padding;
-                menuState.width = 180.f;
-
-                float maxScaleRise = (config.maxScale > 1.f) ? (baseSize * (config.maxScale - 1.f)) : 0.f;
-                float maxRise = maxScaleRise + config.maxLiftAmount;
-                int totalHeight = static_cast<int>(config.height() + menuState.height + 12.f + maxRise);
-                zwlr_layer_surface_v1_set_size(ls.layerSurface, 0, totalHeight);
-                wl_surface_commit(ls.surface);
+                int menuHeight = static_cast<int>((actions.size() * menuItemHeight) + padding);
+                int menuWidth = 180;
+                
+                createPopup(ls, clickedIndex, static_cast<int>(clickedIconX), static_cast<int>(clickedIconY), static_cast<int>(clickedIconSize), static_cast<int>(clickedIconSize), menuWidth, menuHeight, mouseCtx.rightClickSerial);
             } else {
-                if (menuState.isOpen) {
-                    menuState.isOpen = false;
-                    menuState.sourceAppIndex = -1;
-                    zwlr_layer_surface_v1_set_size(ls.layerSurface, 0, static_cast<int>(config.height()));
-                    wl_surface_commit(ls.surface);
-                }
+                if (popupSurface.surface) destroyPopup();
             }
         } else {
-            if (menuState.isOpen) {
-                menuState.isOpen = false;
-                menuState.sourceAppIndex = -1;
-                zwlr_layer_surface_v1_set_size(ls.layerSurface, 0, static_cast<int>(config.height()));
-                wl_surface_commit(ls.surface);
-            }
+            if (popupSurface.surface) destroyPopup();
         }
     }
     prevRightPressed = mouseCtx.rightPressed;
@@ -310,41 +261,58 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
         currentX += iconSize + spacing;
     }
 
-    if (menuState.isOpen && menuState.sourceAppIndex >= 0 && menuState.sourceAppIndex < itemCount) {
-        drawGlassDock(vg, menuState.x, menuState.y, menuState.width, menuState.height, 12.f);
+}
 
-        auto& clickedItem{items.at(menuState.sourceAppIndex)};
-        const auto& actions = clickedItem.app.actions;
+void handlePopup(NVGcontext* vg, PopupSurface& popup) {
+    auto& config{DockConfig::get()};
+    auto& mouseCtx{MouseContext::get()};
+    auto& items{config.items};
 
-        float itemY = menuState.y + 8.f;
-        for (std::size_t i = 0; i < actions.size(); i++) {
-            float rowY = itemY + i * 36.f;
+    if (popup.sourceAppIndex < 0 || popup.sourceAppIndex >= static_cast<int>(items.size())) return;
 
-            bool hovered = false;
-            if (mouseCtx.inside &&
-                mouseCtx.x >= menuState.x && mouseCtx.x <= menuState.x + menuState.width &&
-                mouseCtx.y >= rowY && mouseCtx.y < rowY + 36.f) {
-                hovered = true;
-            }
+    drawGlassDock(vg, 0.f, 0.f, popup.width, popup.height, 12.f);
 
-            if (hovered) {
-                nvgBeginPath(vg);
-                nvgRoundedRect(vg, menuState.x + 6.f, rowY + 2.f, menuState.width - 12.f, 32.f, 6.f);
-                nvgFillColor(vg, nvgRGBAf(1.f, 1.f, 1.f, 0.12f));
-                nvgFill(vg);
-            }
+    auto& clickedItem{items.at(popup.sourceAppIndex)};
+    const auto& actions = clickedItem.app.actions;
 
-            nvgFontSize(vg, 13.f);
-            nvgFontFace(vg, "sans");
-            nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+    static bool prevPressed = false;
+    
+    float itemY = 8.f;
+    for (std::size_t i = 0; i < actions.size(); i++) {
+        float rowY = itemY + i * 36.f;
 
-            if (hovered) {
-                nvgFillColor(vg, nvgRGBAf(1.f, 1.f, 1.f, 0.95f));
-            } else {
-                nvgFillColor(vg, nvgRGBAf(1.f, 1.f, 1.f, 0.75f));
-            }
-
-            nvgText(vg, menuState.x + 16.f, rowY + 18.f, actions[i].displayName.c_str(), nullptr);
+        bool hovered = false;
+        if (mouseCtx.inside &&
+            mouseCtx.x >= 0 && mouseCtx.x <= popup.width &&
+            mouseCtx.y >= rowY && mouseCtx.y < rowY + 36.f) {
+            hovered = true;
         }
+
+        if (hovered && mouseCtx.pressed && !prevPressed) {
+            clickedItem.app.launchAction(actions[i]);
+            destroyPopup();
+            break;
+        }
+
+        if (hovered) {
+            nvgBeginPath(vg);
+            nvgRoundedRect(vg, 6.f, rowY + 2.f, popup.width - 12.f, 32.f, 6.f);
+            nvgFillColor(vg, nvgRGBAf(1.f, 1.f, 1.f, 0.12f));
+            nvgFill(vg);
+        }
+
+        nvgFontSize(vg, 13.f);
+        nvgFontFace(vg, "sans");
+        nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+
+        if (hovered) {
+            nvgFillColor(vg, nvgRGBAf(1.f, 1.f, 1.f, 0.95f));
+        } else {
+            nvgFillColor(vg, nvgRGBAf(1.f, 1.f, 1.f, 0.75f));
+        }
+
+        nvgText(vg, 16.f, rowY + 18.f, actions[i].displayName.c_str(), nullptr);
     }
+    
+    prevPressed = mouseCtx.pressed;
 }

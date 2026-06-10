@@ -34,8 +34,8 @@ WaylandContext::WaylandContext() {
     wl_registry_add_listener(registry, &registryListener, this);
     roundtrip();
 
-    if (!compositor || !layerShell) {
-        logger::error("Missing wl_compositor or zwlr_layer_shell_v1");
+    if (!compositor || !layerShell || !xdgWmBase) {
+        logger::error("Missing wl_compositor, zwlr_layer_shell_v1, or xdg_wm_base");
         std::exit(EXIT_FAILURE);
     }
 
@@ -45,6 +45,7 @@ WaylandContext::WaylandContext() {
 WaylandContext::~WaylandContext() {
     if (pointer) wl_pointer_destroy(pointer);
     if (seat) wl_seat_destroy(seat);
+    if (xdgWmBase) xdg_wm_base_destroy(xdgWmBase);
     if (layerShell) zwlr_layer_shell_v1_destroy(layerShell);
     if (compositor) wl_compositor_destroy(compositor);
     if (registry) wl_registry_destroy(registry);
@@ -58,6 +59,14 @@ WaylandContext::~WaylandContext() {
 void WaylandContext::roundtrip() const { wl_display_roundtrip(display); }
 
 int WaylandContext::dispatch() const { return wl_display_dispatch(display); }
+
+static void xdg_wm_base_ping(void*, xdg_wm_base* xdgWmBase, uint32_t serial) {
+    xdg_wm_base_pong(xdgWmBase, serial);
+}
+
+static constexpr xdg_wm_base_listener xdgWmBaseListener = {
+    .ping = xdg_wm_base_ping,
+};
 
 void WaylandContext::onGlobal(void* data, wl_registry* registry,
                               std::uint32_t name, const char* interface,
@@ -74,6 +83,10 @@ void WaylandContext::onGlobal(void* data, wl_registry* registry,
         self.layerShell = static_cast<zwlr_layer_shell_v1*>(
             wl_registry_bind(registry, name, &zwlr_layer_shell_v1_interface,
                              std::min(version, LAYER_SHELL_VERSION)));
+    } else if (std::strcmp(interface, xdg_wm_base_interface.name) == 0) {
+        self.xdgWmBase = static_cast<xdg_wm_base*>(
+            wl_registry_bind(registry, name, &xdg_wm_base_interface, 1));
+        xdg_wm_base_add_listener(self.xdgWmBase, &xdgWmBaseListener, nullptr);
     } else if (std::strcmp(interface, wl_seat_interface.name) == 0) {
         self.seat = static_cast<wl_seat*>(
             wl_registry_bind(registry, name, &wl_seat_interface,
@@ -122,6 +135,10 @@ void WaylandContext::onGlobalRemove(void* data,
                wl_proxy_get_id((wl_proxy*)self.layerShell) == name) {
         zwlr_layer_shell_v1_destroy(self.layerShell);
         self.layerShell = nullptr;
+    } else if (self.xdgWmBase &&
+               wl_proxy_get_id((wl_proxy*)self.xdgWmBase) == name) {
+        xdg_wm_base_destroy(self.xdgWmBase);
+        self.xdgWmBase = nullptr;
     }
 }
 
@@ -187,6 +204,7 @@ void WaylandContext::onPointerButton([[maybe_unused]] void* data, wl_pointer*,
             mouseContext.rightPressed = true;
             mouseContext.rightClickX = mouseContext.x;
             mouseContext.rightClickY = mouseContext.y;
+            mouseContext.rightClickSerial = serial;
         } else {
             mouseContext.rightPressed = false;
         }
