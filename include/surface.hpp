@@ -31,6 +31,10 @@ struct PopupSurface {
     int height{0};
     int sourceAppIndex{-1};
     bool isConfigured{false};
+
+    int anchorX{0};
+    int anchorY{0};
+    int anchorSize{0};
 };
 
 class LayerSurface {
@@ -71,5 +75,6 @@ class LayerSurface {
 extern PopupSurface popupSurface;
 void createPopup(LayerSurface& ls, int appIndex, int iconX, int iconY, int iconWidth, int iconHeight, int menuWidth, int menuHeight, uint32_t serial);
 void destroyPopup();
+void repositionPopup(int iconX, int iconY, int iconWidth, int iconHeight);
 
 #endif  // SURFACE_HPP

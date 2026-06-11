@@ -245,6 +245,12 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
         float x{currentX + iconSize * 0.5f};
         float y{baseBottomY - (iconSize * 0.5f) + item.lift()};
 
+        if (popupSurface.surface && popupSurface.sourceAppIndex == i) {
+            float iconBottom{baseBottomY + item.lift()};
+            float iconTop{iconBottom - iconSize};
+            repositionPopup(static_cast<int>(currentX), static_cast<int>(iconTop), static_cast<int>(iconSize), static_cast<int>(iconSize));
+        }
+
         item.dotSpring.update(dt);
 
         if (iconPath) {

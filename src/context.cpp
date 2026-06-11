@@ -14,6 +14,7 @@ constexpr std::uint32_t SEAT_VERSION{7};
 constexpr std::uint32_t LAYER_SHELL_VERSION{1};
 constexpr std::uint32_t EXT_FOREIGN_VERSION{1};
 constexpr std::uint32_t WLR_FOREIGN_VERSION{3};
+constexpr std::uint32_t XDG_WM_BASE_VERSION{3};
 
 WaylandContext& WaylandContext::get() {
     static WaylandContext instance;
@@ -85,7 +86,8 @@ void WaylandContext::onGlobal(void* data, wl_registry* registry,
                              std::min(version, LAYER_SHELL_VERSION)));
     } else if (std::strcmp(interface, xdg_wm_base_interface.name) == 0) {
         self.xdgWmBase = static_cast<xdg_wm_base*>(
-            wl_registry_bind(registry, name, &xdg_wm_base_interface, 1));
+            wl_registry_bind(registry, name, &xdg_wm_base_interface,
+                             std::min(version, XDG_WM_BASE_VERSION)));
         xdg_wm_base_add_listener(self.xdgWmBase, &xdgWmBaseListener, nullptr);
     } else if (std::strcmp(interface, wl_seat_interface.name) == 0) {
         self.seat = static_cast<wl_seat*>(

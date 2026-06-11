@@ -182,6 +182,38 @@ void createPopup(LayerSurface& ls, int appIndex, int iconX, int iconY, int iconW
     xdg_popup_grab(popupSurface.xdgPopup, wl.seat, serial);
 
     wl_surface_commit(popupSurface.surface);
+
+    popupSurface.anchorX = iconX;
+    popupSurface.anchorY = iconY;
+    popupSurface.anchorSize = iconWidth;
+}
+
+void repositionPopup(int iconX, int iconY, int iconWidth, int iconHeight) {
+    if (!popupSurface.xdgPopup) return;
+    
+    if (popupSurface.anchorX == iconX && popupSurface.anchorY == iconY && popupSurface.anchorSize == iconWidth) {
+        return;
+    }
+    
+    popupSurface.anchorX = iconX;
+    popupSurface.anchorY = iconY;
+    popupSurface.anchorSize = iconWidth;
+
+    auto& wl{WaylandContext::get()};
+    
+    xdg_positioner* positioner = xdg_wm_base_create_positioner(wl.xdgWmBase);
+    xdg_positioner_set_size(positioner, popupSurface.width, popupSurface.height);
+    
+    xdg_positioner_set_anchor_rect(positioner, iconX, iconY, iconWidth, iconHeight);
+    xdg_positioner_set_anchor(positioner, XDG_POSITIONER_ANCHOR_TOP);
+    xdg_positioner_set_gravity(positioner, XDG_POSITIONER_GRAVITY_TOP);
+    xdg_positioner_set_constraint_adjustment(positioner, XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_SLIDE_X | XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_SLIDE_Y | XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_FLIP_Y);
+    xdg_positioner_set_offset(positioner, 0, -8);
+
+    xdg_popup_reposition(popupSurface.xdgPopup, positioner, 0);
+    xdg_positioner_destroy(positioner);
+
+    wl_surface_commit(popupSurface.surface);
 }
 
 void LayerSurface::onConfigure(void* data, zwlr_layer_surface_v1* layerSurface,
