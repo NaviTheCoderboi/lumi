@@ -124,8 +124,19 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
     float dockY{h - visualDockHeight};
     float startX{dockX + config.padding.left + config.itemMargin.left};
 
-    float hoverX{(mouseCtx.inside && mouseCtx.currentSurface == ls.surface) ? mouseCtx.x : -9999.f};
-    float hoverY{(mouseCtx.inside && mouseCtx.currentSurface == ls.surface) ? mouseCtx.y : -9999.f};
+    float hoverX{-9999.f};
+    float hoverY{-9999.f};
+
+    if (mouseCtx.inside && mouseCtx.currentSurface == ls.surface) {
+        hoverX = mouseCtx.x;
+        hoverY = mouseCtx.y;
+    } else if (mouseCtx.inside && mouseCtx.currentSurface == popupSurface.surface) {
+        hoverX = mouseCtx.x + popupSurface.anchorX + popupSurface.anchorSize * 0.5f - popupSurface.width * 0.5f;
+        hoverY = mouseCtx.y + popupSurface.anchorY - 8.f - popupSurface.height;
+    } else if (popupSurface.surface) {
+        hoverX = mouseCtx.rightClickX;
+        hoverY = mouseCtx.rightClickY;
+    }
     float baseBottomY{dockY + config.padding.top + config.itemMargin.top +
                       baseSize};
 
@@ -182,7 +193,6 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
     }
     prevPressed = mouseCtx.pressed;
 
-    // Handle Right Clicks
     static bool prevRightPressed{false};
     if (mouseCtx.rightPressed && !prevRightPressed) {
         if (mouseCtx.currentSurface == ls.surface) {
@@ -231,11 +241,9 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
     }
     prevRightPressed = mouseCtx.rightPressed;
 
-    // Draw the Dock Background
     drawGlassDock(vg, dockX, dockY, animatedWidth, visualDockHeight,
                   config.cornerRadius);
 
-    // Draw the Dock Icons
     float currentX{dockX + config.padding.left + config.itemMargin.left};
     for (int i{0}; i < itemCount; i++) {
         auto& item{items[i]};
@@ -307,20 +315,14 @@ void handlePopup(NVGcontext* vg, PopupSurface& popup) {
         if (hovered) {
             nvgBeginPath(vg);
             nvgRoundedRect(vg, 6.f, rowY + 2.f, popup.width - 12.f, 32.f, 6.f);
-            nvgFillColor(vg, nvgRGBAf(1.f, 1.f, 1.f, 0.12f));
+            nvgFillColor(vg, nvgRGBAf(1.f, 1.f, 1.f, 0.5f));
             nvgFill(vg);
         }
 
         nvgFontSize(vg, 13.f);
         nvgFontFace(vg, "sans");
         nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-
-        if (hovered) {
-            nvgFillColor(vg, nvgRGBAf(1.f, 1.f, 1.f, 0.95f));
-        } else {
-            nvgFillColor(vg, nvgRGBAf(1.f, 1.f, 1.f, 0.75f));
-        }
-
+        nvgFillColor(vg, nvgRGBAf(1.f, 1.f, 1.f, 1.f));
         nvgText(vg, 16.f, rowY + 18.f, actions[i].displayName.c_str(), nullptr);
     }
     
