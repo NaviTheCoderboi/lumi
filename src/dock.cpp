@@ -124,8 +124,8 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
     float dockY{h - visualDockHeight};
     float startX{dockX + config.padding.left + config.itemMargin.left};
 
-    float hoverX{mouseCtx.inside ? mouseCtx.x : -9999.f};
-    float hoverY{mouseCtx.inside ? mouseCtx.y : -9999.f};
+    float hoverX{(mouseCtx.inside && mouseCtx.currentSurface == ls.surface) ? mouseCtx.x : -9999.f};
+    float hoverY{(mouseCtx.inside && mouseCtx.currentSurface == ls.surface) ? mouseCtx.y : -9999.f};
     float baseBottomY{dockY + config.padding.top + config.itemMargin.top +
                       baseSize};
 
@@ -149,33 +149,35 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
 
     static bool prevPressed{false};
     if (mouseCtx.pressed && !prevPressed) {
-        if (popupSurface.surface) {
+        if (popupSurface.surface && mouseCtx.currentSurface != popupSurface.surface) {
             destroyPopup();
         }
 
-        float cx{dockX + config.padding.left + config.itemMargin.left};
+        if (mouseCtx.currentSurface == ls.surface) {
+            float cx{dockX + config.padding.left + config.itemMargin.left};
 
-        mouseCtx.lastClickIndex = -1;
+            mouseCtx.lastClickIndex = -1;
 
-        for (int i{0}; i < itemCount; i++) {
-            float iconSize{baseSize * items[i].scale()};
-            float iconBottom{baseBottomY + items[i].lift()};
-            float iconTop{iconBottom - iconSize};
-            bool insideY{mouseCtx.clickY >= iconTop &&
-                         mouseCtx.clickY <= iconBottom};
+            for (int i{0}; i < itemCount; i++) {
+                float iconSize{baseSize * items[i].scale()};
+                float iconBottom{baseBottomY + items[i].lift()};
+                float iconTop{iconBottom - iconSize};
+                bool insideY{mouseCtx.clickY >= iconTop &&
+                             mouseCtx.clickY <= iconBottom};
 
-            if (insideY && mouseCtx.clickX >= cx &&
-                mouseCtx.clickX <= cx + iconSize) {
-                mouseCtx.lastClickIndex = i;
-                break;
+                if (insideY && mouseCtx.clickX >= cx &&
+                    mouseCtx.clickX <= cx + iconSize) {
+                    mouseCtx.lastClickIndex = i;
+                    break;
+                }
+
+                cx += iconSize + spacing;
             }
 
-            cx += iconSize + spacing;
-        }
-
-        if (mouseCtx.lastClickIndex != -1) {
-            auto& clickedItem{items.at(mouseCtx.lastClickIndex)};
-            clickedItem.app.launch();
+            if (mouseCtx.lastClickIndex != -1) {
+                auto& clickedItem{items.at(mouseCtx.lastClickIndex)};
+                clickedItem.app.launch();
+            }
         }
     }
     prevPressed = mouseCtx.pressed;
@@ -183,46 +185,48 @@ void handleDock(NVGcontext* vg, IconRenderer& iconRenderer, LayerSurface& ls,
     // Handle Right Clicks
     static bool prevRightPressed{false};
     if (mouseCtx.rightPressed && !prevRightPressed) {
-        float cx{dockX + config.padding.left + config.itemMargin.left};
-        int clickedIndex = -1;
-        float clickedIconX = 0.f;
-        float clickedIconY = 0.f;
-        float clickedIconSize = 0.f;
+        if (mouseCtx.currentSurface == ls.surface) {
+            float cx{dockX + config.padding.left + config.itemMargin.left};
+            int clickedIndex = -1;
+            float clickedIconX = 0.f;
+            float clickedIconY = 0.f;
+            float clickedIconSize = 0.f;
 
-        for (int i{0}; i < itemCount; i++) {
-            float iconSize{baseSize * items[i].scale()};
-            float iconBottom{baseBottomY + items[i].lift()};
-            float iconTop{iconBottom - iconSize};
-            bool insideY{mouseCtx.rightClickY >= iconTop &&
-                         mouseCtx.rightClickY <= iconBottom};
+            for (int i{0}; i < itemCount; i++) {
+                float iconSize{baseSize * items[i].scale()};
+                float iconBottom{baseBottomY + items[i].lift()};
+                float iconTop{iconBottom - iconSize};
+                bool insideY{mouseCtx.rightClickY >= iconTop &&
+                             mouseCtx.rightClickY <= iconBottom};
 
-            if (insideY && mouseCtx.rightClickX >= cx &&
-                mouseCtx.rightClickX <= cx + iconSize) {
-                clickedIndex = i;
-                clickedIconX = cx;
-                clickedIconY = iconTop;
-                clickedIconSize = iconSize;
-                break;
+                if (insideY && mouseCtx.rightClickX >= cx &&
+                    mouseCtx.rightClickX <= cx + iconSize) {
+                    clickedIndex = i;
+                    clickedIconX = cx;
+                    clickedIconY = iconTop;
+                    clickedIconSize = iconSize;
+                    break;
+                }
+
+                cx += iconSize + spacing;
             }
 
-            cx += iconSize + spacing;
-        }
-
-        if (clickedIndex != -1) {
-            auto& clickedItem{items.at(clickedIndex)};
-            const auto& actions = clickedItem.app.actions;
-            if (!actions.empty()) {
-                float menuItemHeight = 36.f;
-                float padding = 16.f;
-                int menuHeight = static_cast<int>((actions.size() * menuItemHeight) + padding);
-                int menuWidth = 180;
-                
-                createPopup(ls, clickedIndex, static_cast<int>(clickedIconX), static_cast<int>(clickedIconY), static_cast<int>(clickedIconSize), static_cast<int>(clickedIconSize), menuWidth, menuHeight, mouseCtx.rightClickSerial);
+            if (clickedIndex != -1) {
+                auto& clickedItem{items.at(clickedIndex)};
+                const auto& actions = clickedItem.app.actions;
+                if (!actions.empty()) {
+                    float menuItemHeight = 36.f;
+                    float padding = 16.f;
+                    int menuHeight = static_cast<int>((actions.size() * menuItemHeight) + padding);
+                    int menuWidth = 180;
+                    
+                    createPopup(ls, clickedIndex, static_cast<int>(clickedIconX), static_cast<int>(clickedIconY), static_cast<int>(clickedIconSize), static_cast<int>(clickedIconSize), menuWidth, menuHeight, mouseCtx.rightClickSerial);
+                } else {
+                    if (popupSurface.surface) destroyPopup();
+                }
             } else {
                 if (popupSurface.surface) destroyPopup();
             }
-        } else {
-            if (popupSurface.surface) destroyPopup();
         }
     }
     prevRightPressed = mouseCtx.rightPressed;
@@ -282,7 +286,7 @@ void handlePopup(NVGcontext* vg, PopupSurface& popup) {
         float rowY = itemY + i * 36.f;
 
         bool hovered = false;
-        if (mouseCtx.inside &&
+        if (mouseCtx.inside && mouseCtx.currentSurface == popup.surface &&
             mouseCtx.x >= 0 && mouseCtx.x <= popup.width &&
             mouseCtx.y >= rowY && mouseCtx.y < rowY + 36.f) {
             hovered = true;

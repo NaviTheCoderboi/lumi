@@ -159,13 +159,14 @@ void WaylandContext::onSeatCapabilities(void* data, wl_seat* seat,
 }
 
 void WaylandContext::onPointerEnter([[maybe_unused]] void* data, wl_pointer*,
-                                    uint32_t, wl_surface*, wl_fixed_t sx,
+                                    uint32_t, wl_surface* surface, wl_fixed_t sx,
                                     wl_fixed_t sy) {
     auto& mouseContext{MouseContext::get()};
 
     mouseContext.x = wl_fixed_to_double(sx);
     mouseContext.y = wl_fixed_to_double(sy);
     mouseContext.inside = true;
+    mouseContext.currentSurface = surface;
 }
 
 void WaylandContext::onPointerLeave([[maybe_unused]] void* data, wl_pointer*,
@@ -174,6 +175,7 @@ void WaylandContext::onPointerLeave([[maybe_unused]] void* data, wl_pointer*,
     mouseContext.inside = false;
     mouseContext.x = -9999.f;
     mouseContext.y = -9999.f;
+    mouseContext.currentSurface = nullptr;
 }
 
 void WaylandContext::onPointerMotion([[maybe_unused]] void* data, wl_pointer*,

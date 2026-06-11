@@ -26,6 +26,7 @@ class MouseContext {
     float x{0.f};
     float y{0.f};
     bool inside{false};
+    wl_surface* currentSurface{nullptr};
 
     bool pressed{false};
     float clickX{0.f};
