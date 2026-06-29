@@ -1,7 +1,6 @@
 #include "dock.hpp"
 
 #include <cmath>
-#include <cstddef>
 
 #include "app.hpp"
 #include "config.hpp"
@@ -79,7 +78,7 @@ static void updateDockAnimations(
     MouseContext& mouseCtx{MouseContext::get()};
 
     float influenceRadius{itemSize * 2.3f};
-    
+
     mouseCtx.dndHoverIndex = -1;
     float currentX{dockStartX};
     int idx{0};
@@ -101,26 +100,30 @@ static void updateDockAnimations(
         float iconTop{iconBottom - iconSize};
 
         bool insideY{mouseY >= iconTop && mouseY <= iconBottom};
-        
+        float influence{
+            (insideY ? std::max(0.f, 1.f - distance / influenceRadius) : 0.f)};
+        influence *= influence;
+
+        float targetScale{1};
+        float targetLift{0};
+
         if (mouseCtx.dndActive) {
             float iconLeft{iconCenter - iconSize * 0.5f};
             float iconRight{iconCenter + iconSize * 0.5f};
             if (insideY && mouseX >= iconLeft && mouseX <= iconRight) {
                 mouseCtx.dndHoverIndex = idx;
             }
-        }
 
-        float influence{
-            insideY ? std::max(0.f, 1.f - distance / influenceRadius) : 0.f};
-
-        influence *= influence;
-
-        float targetScale{1.f + influence * (config.maxScale - 1.f)};
-        float targetLift{
-            (config.maxScale == 1.f) ? 0.f : -influence * config.maxLiftAmount};
-            
-        if (mouseCtx.dndActive && mouseCtx.dndHoverIndex == idx) {
-            targetScale = config.maxScale * 1.1f;
+            if (mouseCtx.dndHoverIndex == idx) {
+                targetScale = config.maxScale;
+                targetLift =
+                    (config.maxScale == 1.f) ? 0.f : -config.maxLiftAmount;
+            };
+        } else {
+            targetScale = 1.f + influence * (config.maxScale - 1.f);
+            targetLift = (config.maxScale == 1.f)
+                             ? 0.f
+                             : -influence * config.maxLiftAmount;
         }
 
         item.scaleSpring.setTarget(targetScale);

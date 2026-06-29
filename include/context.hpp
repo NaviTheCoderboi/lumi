@@ -126,16 +126,28 @@ class WaylandContext {
                                       std::uint32_t) {},
     };
 
-    static void data_device_data_offer(void*, wl_data_device*, wl_data_offer*);
-    static void data_device_enter(void*, wl_data_device*, uint32_t, wl_surface*, wl_fixed_t, wl_fixed_t, wl_data_offer*);
-    static void data_device_leave(void*, wl_data_device*);
-    static void data_device_motion(void*, wl_data_device*, uint32_t, wl_fixed_t, wl_fixed_t);
-    static void data_device_drop(void*, wl_data_device*);
+    static void dndDataOffer(void*, wl_data_device*, wl_data_offer*);
+    static void dndEnter(void*, wl_data_device*, uint32_t, wl_surface*,
+                         wl_fixed_t, wl_fixed_t, wl_data_offer*);
+    static void dndLeave(void*, wl_data_device*);
+    static void dndMotion(void*, wl_data_device*, uint32_t, wl_fixed_t,
+                          wl_fixed_t);
+    static void dndDrop(void*, wl_data_device*);
 
-    static void data_offer_offer(void*, wl_data_offer*, const char*);
-    static const wl_data_offer_listener offerListener;
+    static void dndOffer(void*, wl_data_offer*, const char*);
+    static constexpr wl_data_offer_listener offerListener{
+        .offer = dndOffer,
+        .source_actions = [](void*, wl_data_offer*, uint32_t) {},
+        .action = [](void*, wl_data_offer*, uint32_t) {}};
 
-    static const wl_data_device_listener dataDeviceListener;
+    static constexpr wl_data_device_listener dataDeviceListener{
+        .data_offer = dndDataOffer,
+        .enter = dndEnter,
+        .leave = dndLeave,
+        .motion = dndMotion,
+        .drop = dndDrop,
+        .selection = [](void*, wl_data_device*, wl_data_offer*) {},
+    };
 };
 
 #endif

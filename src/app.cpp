@@ -126,10 +126,14 @@ void App::launch(const std::vector<std::string>& files) const {
             fileArgs += " \"" + f + "\"";
         }
 
-        if (cmd.find("%u") != std::string::npos) cmd.replace(cmd.find("%u"), 2, fileArgs);
-        else if (cmd.find("%U") != std::string::npos) cmd.replace(cmd.find("%U"), 2, fileArgs);
-        else if (cmd.find("%f") != std::string::npos) cmd.replace(cmd.find("%f"), 2, fileArgs);
-        else if (cmd.find("%F") != std::string::npos) cmd.replace(cmd.find("%F"), 2, fileArgs);
+        if (cmd.find("%u") != std::string::npos)
+            cmd.replace(cmd.find("%u"), 2, fileArgs);
+        else if (cmd.find("%U") != std::string::npos)
+            cmd.replace(cmd.find("%U"), 2, fileArgs);
+        else if (cmd.find("%f") != std::string::npos)
+            cmd.replace(cmd.find("%f"), 2, fileArgs);
+        else if (cmd.find("%F") != std::string::npos)
+            cmd.replace(cmd.find("%F"), 2, fileArgs);
         else {
             cmd += fileArgs;
         }

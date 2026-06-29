@@ -1,20 +1,19 @@
 #include "context.hpp"
 
+#include <fcntl.h>
+#include <poll.h>
+#include <unistd.h>
 #include <wayland-client-protocol.h>
 
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-
 #include <sstream>
-#include <fcntl.h>
-#include <poll.h>
-#include <unistd.h>
 #include <vector>
 
+#include "config.hpp"
 #include "logger.hpp"
 #include "toplevel.hpp"
-#include "config.hpp"
 
 constexpr std::uint32_t COMPOSITOR_VERSION{4};
 constexpr std::uint32_t SEAT_VERSION{7};
@@ -131,9 +130,11 @@ void WaylandContext::onGlobal(void* data, wl_registry* registry,
         self.backend = BackendType::WlrForeign;
         toplevelCtx.setBackend(
             std::make_unique<WlrForeignBackend>(self.wlrToplevelManager));
-    } else if (std::strcmp(interface, wl_data_device_manager_interface.name) == 0) {
-        self.dataDeviceManager = static_cast<wl_data_device_manager*>(
-            wl_registry_bind(registry, name, &wl_data_device_manager_interface, 3));
+    } else if (std::strcmp(interface, wl_data_device_manager_interface.name) ==
+               0) {
+        self.dataDeviceManager =
+            static_cast<wl_data_device_manager*>(wl_registry_bind(
+                registry, name, &wl_data_device_manager_interface, 3));
     }
 }
 
@@ -171,8 +172,10 @@ void WaylandContext::onSeatCapabilities(void* data, wl_seat* seat,
         wl_pointer_add_listener(self.pointer, &pointerListener, &self);
 
         if (self.dataDeviceManager && !self.dataDevice) {
-            self.dataDevice = wl_data_device_manager_get_data_device(self.dataDeviceManager, seat);
-            wl_data_device_add_listener(self.dataDevice, &WaylandContext::dataDeviceListener, &self);
+            self.dataDevice = wl_data_device_manager_get_data_device(
+                self.dataDeviceManager, seat);
+            wl_data_device_add_listener(
+                self.dataDevice, &WaylandContext::dataDeviceListener, &self);
         }
 
         logger::info("pointer capability enabled");
@@ -246,44 +249,47 @@ static std::vector<std::string> parseUriList(const std::string& uriList) {
     std::vector<std::string> paths;
     std::istringstream stream(uriList);
     std::string line;
+
     while (std::getline(stream, line)) {
         if (!line.empty() && line.back() == '\r') line.pop_back();
+
         if (line.find("file://") == 0) {
             std::string path = line.substr(7);
             std::string decoded;
-            for (size_t i = 0; i < path.length(); ++i) {
+
+            for (std::size_t i{0}; i < path.length(); ++i) {
                 if (path[i] == '%' && i + 2 < path.length()) {
                     int hex;
-                    std::istringstream(path.substr(i + 1, 2)) >> std::hex >> hex;
+                    std::istringstream(path.substr(i + 1, 2)) >> std::hex >>
+                        hex;
                     decoded += static_cast<char>(hex);
                     i += 2;
                 } else {
                     decoded += path[i];
                 }
             }
+
             paths.push_back(decoded);
         }
     }
+
     return paths;
 }
 
-void WaylandContext::data_offer_offer(void*, wl_data_offer* offer, const char* mimeType) {
+void WaylandContext::dndOffer(void*, wl_data_offer* offer,
+                              const char* mimeType) {
     auto& mouseCtx{MouseContext::get()};
-    if (mouseCtx.pendingOffer == offer && std::strcmp(mimeType, "text/uri-list") == 0) {
+
+    if (mouseCtx.pendingOffer == offer &&
+        std::strcmp(mimeType, "text/uri-list") == 0) {
         mouseCtx.hasUriList = true;
     }
 }
 
-const wl_data_offer_listener WaylandContext::offerListener{
-    .offer = WaylandContext::data_offer_offer,
-    .source_actions = [](void*, wl_data_offer*, uint32_t) {},
-    .action = [](void*, wl_data_offer*, uint32_t) {},
-};
-
-void WaylandContext::data_device_data_offer(void*, wl_data_device*, wl_data_offer* offer) {
+void WaylandContext::dndDataOffer(void*, wl_data_device*,
+                                  wl_data_offer* offer) {
     auto& mouseCtx{MouseContext::get()};
 
-    // Destroy any previous pending offer that was never used
     if (mouseCtx.pendingOffer) {
         wl_data_offer_destroy(mouseCtx.pendingOffer);
     }
@@ -293,8 +299,11 @@ void WaylandContext::data_device_data_offer(void*, wl_data_device*, wl_data_offe
     wl_data_offer_add_listener(offer, &WaylandContext::offerListener, nullptr);
 }
 
-void WaylandContext::data_device_enter(void*, wl_data_device*, uint32_t serial, wl_surface* surface, wl_fixed_t x, wl_fixed_t y, wl_data_offer* offer) {
+void WaylandContext::dndEnter(void*, wl_data_device*, uint32_t serial,
+                              wl_surface* surface, wl_fixed_t x, wl_fixed_t y,
+                              wl_data_offer* offer) {
     auto& mouseCtx{MouseContext::get()};
+
     mouseCtx.x = wl_fixed_to_double(x);
     mouseCtx.y = wl_fixed_to_double(y);
     mouseCtx.inside = true;
@@ -304,15 +313,14 @@ void WaylandContext::data_device_enter(void*, wl_data_device*, uint32_t serial, 
 
     if (mouseCtx.hasUriList) {
         wl_data_offer_accept(offer, serial, "text/uri-list");
-        wl_data_offer_set_actions(offer,
-            WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY,
-            WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY);
+        wl_data_offer_set_actions(offer, WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY,
+                                  WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY);
     } else {
         wl_data_offer_accept(offer, serial, nullptr);
     }
 }
 
-void WaylandContext::data_device_leave(void*, wl_data_device*) {
+void WaylandContext::dndLeave(void*, wl_data_device*) {
     auto& mouseCtx{MouseContext::get()};
 
     if (mouseCtx.dndOffer) {
@@ -329,15 +337,19 @@ void WaylandContext::data_device_leave(void*, wl_data_device*) {
     mouseCtx.currentSurface = nullptr;
 }
 
-void WaylandContext::data_device_motion(void*, wl_data_device*, uint32_t, wl_fixed_t x, wl_fixed_t y) {
+void WaylandContext::dndMotion(void*, wl_data_device*, uint32_t, wl_fixed_t x,
+                               wl_fixed_t y) {
     auto& mouseCtx{MouseContext::get()};
+
     mouseCtx.x = wl_fixed_to_double(x);
     mouseCtx.y = wl_fixed_to_double(y);
 }
 
-void WaylandContext::data_device_drop(void*, wl_data_device*) {
+void WaylandContext::dndDrop(void*, wl_data_device*) {
     auto& mouseCtx{MouseContext::get()};
-    if (mouseCtx.dndHoverIndex == -1 || !mouseCtx.dndOffer || !mouseCtx.hasUriList) {
+
+    if (mouseCtx.dndHoverIndex == -1 || !mouseCtx.dndOffer ||
+        !mouseCtx.hasUriList) {
         if (mouseCtx.dndOffer) {
             wl_data_offer_destroy(mouseCtx.dndOffer);
         }
@@ -362,14 +374,12 @@ void WaylandContext::data_device_drop(void*, wl_data_device*) {
     close(fds[1]);
     wl_display_flush(WaylandContext::get().display);
 
-    // Make the read end non-blocking
     int flags{fcntl(fds[0], F_GETFL, 0)};
     fcntl(fds[0], F_SETFL, flags | O_NONBLOCK);
 
     std::string uriList;
     char buffer[4096];
 
-    // Poll with a timeout to avoid blocking the event loop indefinitely
     struct pollfd pfd;
     pfd.fd = fds[0];
     pfd.events = POLLIN;
@@ -390,6 +400,7 @@ void WaylandContext::data_device_drop(void*, wl_data_device*) {
     if (!paths.empty()) {
         auto& config{DockConfig::get()};
         auto& item{config.items[mouseCtx.dndHoverIndex]};
+
         if (std::holds_alternative<DockItem>(item)) {
             std::get<DockItem>(item).app.launch(paths);
         }
@@ -403,12 +414,3 @@ void WaylandContext::data_device_drop(void*, wl_data_device*) {
     mouseCtx.pendingOffer = nullptr;
     mouseCtx.dndHoverIndex = -1;
 }
-
-const wl_data_device_listener WaylandContext::dataDeviceListener{
-    .data_offer = WaylandContext::data_device_data_offer,
-    .enter = WaylandContext::data_device_enter,
-    .leave = WaylandContext::data_device_leave,
-    .motion = WaylandContext::data_device_motion,
-    .drop = WaylandContext::data_device_drop,
-    .selection = [](void*, wl_data_device*, wl_data_offer*) {},
-};

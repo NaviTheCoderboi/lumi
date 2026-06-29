@@ -78,13 +78,14 @@ std::optional<std::string> getFontPath(const std::string& family) {
         fcInitialized = true;
     }
 
-    FcPattern* pat{FcNameParse(reinterpret_cast<const FcChar8*>(family.c_str()))};
+    FcPattern* pat{
+        FcNameParse(reinterpret_cast<const FcChar8*>(family.c_str()))};
     FcConfigSubstitute(nullptr, pat, FcMatchPattern);
     FcDefaultSubstitute(pat);
 
     std::optional<std::string> result;
     FcResult res;
-    
+
     FcPattern* font{FcFontMatch(nullptr, pat, &res)};
     if (font) {
         FcChar8* file{nullptr};
